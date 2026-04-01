@@ -2,42 +2,42 @@
   "Bee": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
-    "promptFile": "/path/to/PinchCord/prompts/bee.md",
+    "promptFile": ".pinchme/cord/prompts/bee.md",
     "model": "claude-sonnet-4-6",
     "effort": "high"
   },
   "Beaver": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
-    "promptFile": "/path/to/PinchCord/prompts/beaver.md",
+    "promptFile": ".pinchme/cord/prompts/beaver.md",
     "model": "claude-sonnet-4-6",
     "effort": "high"
   },
   "Fox": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
-    "promptFile": "/path/to/PinchCord/prompts/fox.md",
+    "promptFile": ".pinchme/cord/prompts/fox.md",
     "model": "claude-sonnet-4-6",
     "effort": "medium"
   },
   "Badger": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
-    "promptFile": "/path/to/PinchCord/prompts/badger.md",
+    "promptFile": ".pinchme/cord/prompts/badger.md",
     "model": "claude-sonnet-4-6",
     "effort": "medium"
   },
   "Owl": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
-    "promptFile": "/path/to/PinchCord/prompts/owl.md",
+    "promptFile": ".pinchme/cord/prompts/owl.md",
     "model": "claude-sonnet-4-6",
     "effort": "high"
   },
   "Crow": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
-    "promptFile": "/path/to/PinchCord/prompts/crow.md",
+    "promptFile": ".pinchme/cord/prompts/crow.md",
     "model": "claude-sonnet-4-6",
     "effort": "high"
   }

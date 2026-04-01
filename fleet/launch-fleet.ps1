@@ -4,26 +4,55 @@
 #   .\launch-fleet.ps1 Engineer Reviewer     # Launch Engineer and Reviewer
 #   .\launch-fleet.ps1                       # Launch all bots in config
 #
-# Reads bot config from ~/.pinchcord/bots.json
+# Config resolution (first match wins):
+#   1. -ConfigPath flag (explicit override)
+#   2. PINCHME_DIR env var → $PINCHME_DIR/cord/bots.json
+#   3. .pinchme/cord/bots.json in current working directory (project-local)
+#   4. ~/.pinchme/cord/bots.json in home directory (global)
+#
 # Each bot opens as a named tab in the "PinchCord" terminal window.
 
 param(
     [Parameter(Position=0, ValueFromRemainingArguments)]
     [string[]]$Bots,
     [string]$Window = "PinchCord",
-    [string]$ConfigPath = "$env:USERPROFILE\.pinchcord\bots.json"
+    [string]$ConfigPath = ""
 )
 
 # ── Locate PinchCord server ────────────────────────────────────────
 $ScriptDir = Split-Path -Parent $PSCommandPath
 $PinchCordRoot = Split-Path -Parent $ScriptDir
 
-# ── Load config ────────────────────────────────────────────────────
-if (-not (Test-Path $ConfigPath)) {
-    Write-Host "ERROR: Config not found at $ConfigPath" -ForegroundColor Red
-    Write-Host "Copy fleet/bots.example.json to $ConfigPath and fill in your tokens." -ForegroundColor Yellow
+# ── Resolve config path (fallback chain) ───────────────────────────
+if (-not $ConfigPath) {
+    $candidates = @()
+    if ($env:PINCHME_DIR) {
+        $candidates += Join-Path $env:PINCHME_DIR "cord\bots.json"
+    }
+    $candidates += Join-Path (Get-Location) ".pinchme\cord\bots.json"
+    $candidates += Join-Path $env:USERPROFILE ".pinchme\cord\bots.json"
+
+    foreach ($c in $candidates) {
+        if (Test-Path $c) {
+            $ConfigPath = $c
+            break
+        }
+    }
+}
+
+if (-not $ConfigPath -or -not (Test-Path $ConfigPath)) {
+    Write-Host "ERROR: No bots.json found. Checked:" -ForegroundColor Red
+    Write-Host "  .pinchme/cord/bots.json  (project-local)" -ForegroundColor Yellow
+    Write-Host "  ~/.pinchme/cord/bots.json  (global)" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "To get started:" -ForegroundColor Cyan
+    Write-Host "  mkdir -p .pinchme/cord" -ForegroundColor DarkGray
+    Write-Host "  cp <PinchCord>/fleet/bots.example.json .pinchme/cord/bots.json" -ForegroundColor DarkGray
+    Write-Host "  # Edit bots.json with your Discord bot tokens" -ForegroundColor DarkGray
     exit 1
 }
+
+Write-Host "Config: $ConfigPath" -ForegroundColor DarkGray
 
 $botsJson = Get-Content $ConfigPath -Raw | ConvertFrom-Json
 

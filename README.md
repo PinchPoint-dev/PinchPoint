@@ -42,28 +42,33 @@ bun install
 
 ### 3. Configure your bots
 
-Copy the example config:
+Set up your PinchMe directory. This is where your bot config lives — either in your project repo (project-local) or your home directory (global):
 
 ```bash
-mkdir -p ~/.pinchcord/prompts
-cp fleet/bots.example.json ~/.pinchcord/bots.json
+# Option A: Project-local (recommended — config lives with your project)
+cp -r PinchCord/fleet/pinchme-template .pinchme
+
+# Option B: Global (one fleet across all projects)
+cp -r PinchCord/fleet/pinchme-template ~/.pinchme
 ```
 
-Edit `~/.pinchcord/bots.json` with your bot tokens, working directories, and prompt paths:
+Edit `.pinchme/cord/bots.json` with your bot tokens:
 
 ```json
 {
   "Engineer": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
-    "workDir": "/path/to/your/project",
-    "promptFile": "~/.pinchcord/prompts/engineer.md",
+    "workDir": ".",
+    "promptFile": ".pinchme/cord/prompts/engineer.md",
     "model": "claude-sonnet-4-6",
     "effort": "high"
   }
 }
 ```
 
-Write a system prompt for each bot in `~/.pinchcord/prompts/`. See `prompts/example-bot.md` for a template.
+Write a system prompt for each bot in `.pinchme/cord/prompts/`. See `prompts/` in this repo for 6 example templates (Bee, Beaver, Fox, Badger, Owl, Crow).
+
+The `.pinchme/.gitignore` automatically protects `bots.json` (tokens) and `logs/` from being committed. Prompts and archives are safe to share.
 
 ### 4. Launch
 
@@ -75,13 +80,15 @@ cd PinchCord/fleet
 .\launch-fleet.ps1 Engineer Reviewer   # specific bots
 ```
 
+The launcher auto-detects your config: checks `.pinchme/cord/bots.json` in the current directory first, then `~/.pinchme/cord/bots.json` as a fallback.
+
 **Single bot** (manual):
 
 ```bash
 export DISCORD_BOT_TOKEN="your-token"
 export PINCHHUB_CHANNEL_ID="your-channel-id"
 claude --dangerously-load-development-channels server:pinchcord \
-  --append-system-prompt-file ~/.pinchcord/prompts/engineer.md \
+  --append-system-prompt-file .pinchme/cord/prompts/engineer.md \
   --model claude-sonnet-4-6 --effort high --name Engineer-discord
 ```
 
@@ -126,7 +133,8 @@ PinchCord/
 │
 ├── fleet/                 # Multi-bot fleet management
 │   ├── launch-fleet.ps1   # Windows Terminal fleet launcher
-│   └── bots.example.json  # Template config
+│   ├── bots.example.json  # Template config
+│   └── pinchme-template/  # Scaffold for .pinchme/ directory
 │
 ├── prompts/               # Example bot prompt templates
 │   ├── bee.md             # Lead engineer
@@ -142,17 +150,23 @@ PinchCord/
     └── debugging.md       # Troubleshooting guide
 ```
 
-Your bots and config live outside the repo in `~/.pinchcord/`:
+Your bots and config live in a `.pinchme/` directory (project-local or global):
 
 ```
-~/.pinchcord/
-├── bots.json              # Your bot tokens, models, and paths
-└── prompts/               # Your bot system prompts
-    ├── engineer.md
-    └── reviewer.md
+.pinchme/                          # In your project repo or ~/
+├── .gitignore                     # Protects bots.json and logs/ from commits
+├── cord/                          # PinchCord config
+│   ├── bots.json                  # Bot tokens, models, paths (gitignored)
+│   ├── prompts/                   # Your bot system prompts (shareable)
+│   │   ├── engineer.md
+│   │   └── reviewer.md
+│   ├── archives/                  # Team archive (shareable)
+│   └── logs/                      # Runtime logs (gitignored)
+├── point/                         # Point config (future PinchPoint products)
+└── pinch/                         # Pinch config (future)
 ```
 
-This separation means `git pull` updates PinchCord without touching your bot config.
+`.pinchme/` is part of the **PinchMe** convention — a universal user directory for all PinchPoint products. `git pull` on PinchCord never touches your `.pinchme/`.
 
 ## Requirements
 
