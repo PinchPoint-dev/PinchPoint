@@ -1,0 +1,16 @@
+{
+  "Engineer": {
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "workDir": "C:\\Projects\\my-app",
+    "promptFile": "~/.pinchcord/prompts/engineer.md",
+    "model": "claude-sonnet-4-6",
+    "effort": "high"
+  },
+  "Reviewer": {
+    "token": "ANOTHER_DISCORD_BOT_TOKEN",
+    "workDir": "C:\\Projects\\my-app",
+    "promptFile": "~/.pinchcord/prompts/reviewer.md",
+    "model": "claude-sonnet-4-6",
+    "effort": "high"
+  }
+}
