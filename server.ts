@@ -581,6 +581,91 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['channel'],
       },
     },
+    // PinchCord: thread tools (threads.ts)
+    ...(threads ? [
+      {
+        name: 'create_thread',
+        description: 'Create a public thread off an existing message. Returns thread_id.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            channel_id: { type: 'string', description: 'Channel containing the message to thread from.' },
+            message_id: { type: 'string', description: 'Message ID to create the thread off.' },
+            thread_name: { type: 'string', description: 'Display name for the new thread (max 100 chars).' },
+          },
+          required: ['channel_id', 'message_id', 'thread_name'],
+        },
+      },
+      {
+        name: 'send_to_thread',
+        description: 'Send a message to an existing thread. Auto-unarchives if needed. Returns message_id.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            thread_id: { type: 'string', description: 'The thread channel ID.' },
+            text: { type: 'string' },
+          },
+          required: ['thread_id', 'text'],
+        },
+      },
+    ] : []),
+    // PinchCord: channel tools (channels.ts)
+    ...(channels ? [
+      {
+        name: 'create_channel',
+        description: 'Create a new public text channel in a guild. Returns channel_id.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            guild_id: { type: 'string' },
+            name: { type: 'string', description: 'Channel name (Discord lowercases and slugifies it).' },
+            category_id: { type: 'string', description: 'Optional category to nest under.' },
+            topic: { type: 'string', description: 'Optional channel topic.' },
+          },
+          required: ['guild_id', 'name'],
+        },
+      },
+      {
+        name: 'archive_channel',
+        description: 'Delete a guild channel (Discord has no archive for text channels). Use with caution.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            channel_id: { type: 'string' },
+            reason: { type: 'string', description: 'Audit log reason.' },
+          },
+          required: ['channel_id'],
+        },
+      },
+      {
+        name: 'create_private_channel',
+        description: 'Create a private text channel visible only to specified user IDs and the server owner.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            guild_id: { type: 'string' },
+            name: { type: 'string' },
+            user_ids: { type: 'array', items: { type: 'string' }, description: 'User IDs that should have access.' },
+            category_id: { type: 'string', description: 'Optional category.' },
+            topic: { type: 'string', description: 'Optional topic.' },
+          },
+          required: ['guild_id', 'name', 'user_ids'],
+        },
+      },
+      {
+        name: 'forward_message',
+        description: 'Forward a message from one channel to another, preserving author attribution and attachment references.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            source_message_id: { type: 'string' },
+            source_channel_id: { type: 'string' },
+            target_channel_id: { type: 'string' },
+          },
+          required: ['source_message_id', 'source_channel_id', 'target_channel_id'],
+        },
+      },
+    ] : []),
   ],
 }))
 
@@ -617,17 +702,41 @@ mcp.setRequestHandler(CallToolRequestSchema, async req => {
         const chunks = chunk(text, limit, mode)
         const sentIds: string[] = []
 
+        // PinchCord: extract bot name from session name for embed colors
+        const sessionName = process.env.CLAUDE_SESSION_NAME ?? ''
+        const botName = sessionName.replace(/-discord$/, '') || undefined
+
         try {
           for (let i = 0; i < chunks.length; i++) {
             const shouldReplyTo =
               reply_to != null && replyMode !== 'off' && (replyMode === 'all' || i === 0)
-            const sent = await ch.send({
-              content: chunks[i],
-              ...(i === 0 && files.length > 0 ? { files } : {}),
-              ...(shouldReplyTo ? { reply: { messageReference: reply_to, failIfNotExists: false } } : {}),
-            })
-            noteSent(sent.id)
-            sentIds.push(sent.id)
+            const replyOpts = shouldReplyTo ? { reply: { messageReference: reply_to, failIfNotExists: false } } : {}
+            const fileOpts = i === 0 && files.length > 0 ? { files } : {}
+
+            // PinchCord: format structured markdown as embeds if formats module is loaded
+            const formatted = formats?.formatMessage(chunks[i]!, botName)
+            if (formatted && formatted.type === 'embed') {
+              const sent = await ch.send({ embeds: [formatted.embed], ...fileOpts, ...replyOpts })
+              noteSent(sent.id)
+              sentIds.push(sent.id)
+            } else if (formatted && formatted.type === 'mixed') {
+              for (const part of formatted.parts) {
+                const partOpts = sentIds.length === 0 ? { ...fileOpts, ...replyOpts } : {}
+                if (part.type === 'embed') {
+                  const sent = await ch.send({ embeds: [part.embed], ...partOpts })
+                  noteSent(sent.id)
+                  sentIds.push(sent.id)
+                } else {
+                  const sent = await ch.send({ content: part.content, ...partOpts })
+                  noteSent(sent.id)
+                  sentIds.push(sent.id)
+                }
+              }
+            } else {
+              const sent = await ch.send({ content: chunks[i], ...fileOpts, ...replyOpts })
+              noteSent(sent.id)
+              sentIds.push(sent.id)
+            }
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
@@ -682,6 +791,63 @@ mcp.setRequestHandler(CallToolRequestSchema, async req => {
         return {
           content: [{ type: 'text', text: `downloaded ${lines.length} attachment(s):\n${lines.join('\n')}` }],
         }
+      }
+      // PinchCord: thread tools
+      case 'create_thread': {
+        if (!threads) throw new Error('threads module not loaded')
+        const thread_id = await threads.createThread(
+          args.channel_id as string,
+          args.message_id as string,
+          args.thread_name as string,
+        )
+        return { content: [{ type: 'text', text: `thread created (id: ${thread_id})` }] }
+      }
+      case 'send_to_thread': {
+        if (!threads) throw new Error('threads module not loaded')
+        const msg_id = await threads.sendToThread(
+          args.thread_id as string,
+          args.text as string,
+        )
+        return { content: [{ type: 'text', text: `sent to thread (id: ${msg_id})` }] }
+      }
+      // PinchCord: channel tools
+      case 'create_channel': {
+        if (!channels) throw new Error('channels module not loaded')
+        const ch_id = await channels.createChannel(
+          args.guild_id as string,
+          args.name as string,
+          args.category_id as string | undefined,
+          args.topic as string | undefined,
+        )
+        return { content: [{ type: 'text', text: `channel created (id: ${ch_id})` }] }
+      }
+      case 'archive_channel': {
+        if (!channels) throw new Error('channels module not loaded')
+        await channels.archiveChannel(
+          args.channel_id as string,
+          args.reason as string | undefined,
+        )
+        return { content: [{ type: 'text', text: 'channel deleted' }] }
+      }
+      case 'create_private_channel': {
+        if (!channels) throw new Error('channels module not loaded')
+        const priv_id = await channels.createPrivateChannel(
+          args.guild_id as string,
+          args.name as string,
+          args.user_ids as string[],
+          args.category_id as string | undefined,
+          args.topic as string | undefined,
+        )
+        return { content: [{ type: 'text', text: `private channel created (id: ${priv_id})` }] }
+      }
+      case 'forward_message': {
+        if (!channels) throw new Error('channels module not loaded')
+        const fwd_id = await channels.forwardMessage(
+          args.source_message_id as string,
+          args.source_channel_id as string,
+          args.target_channel_id as string,
+        )
+        return { content: [{ type: 'text', text: `message forwarded (id: ${fwd_id})` }] }
       }
       default:
         return { content: [{ type: 'text', text: `unknown tool: ${req.params.name}` }], isError: true }
@@ -828,7 +994,10 @@ async function handleInbound(msg: Message): Promise<void> {
     void msg.react(accessResult.ackReaction).catch(() => {})
   }
 
-  // Attachments
+  // PinchCord: download attachments immediately if module is loaded
+  const downloads = attachmentsMod ? await attachmentsMod.downloadOnReceipt(msg) : []
+
+  // Attachments — build summary strings for notification
   const atts: string[] = []
   for (const att of msg.attachments.values()) {
     const kb = (att.size / 1024).toFixed(0)
@@ -849,6 +1018,8 @@ async function handleInbound(msg: Message): Promise<void> {
     ...(comms?.botMeta(msg, client.user?.id) ?? {}),
     // PinchCord: thread_id and reply_to from threads module
     ...(threads?.getThreadMeta(msg) ?? {}),
+    // PinchCord: downloaded attachment paths and image_path from attachments module
+    ...(attachmentsMod ? attachmentsMod.getAttachmentMeta(downloads) : {}),
   }
 
   mcp.notification({
@@ -887,6 +1058,8 @@ client.once('ready', async c => {
   if (heartbeat?.init) heartbeat.init(client)
   if (scheduler?.init) scheduler.init(client, mcp)
   if (commands?.init) commands.init(client)
+  // PinchCord: start attachment cleanup timer (removes files older than 1 hour every 15 min)
+  if (attachmentsMod?.startCleanup) attachmentsMod.startCleanup()
 })
 
 client.login(TOKEN).catch(err => {

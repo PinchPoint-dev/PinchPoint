@@ -30,6 +30,8 @@ if (-not $ConfigPath) {
         $candidates += Join-Path $env:PINCHME_DIR "cord\bots.json"
     }
     $candidates += Join-Path (Get-Location) ".pinchme\cord\bots.json"
+    $repoRoot = Split-Path -Parent $PinchCordRoot
+    $candidates += Join-Path $repoRoot ".pinchme\cord\bots.json"
     $candidates += Join-Path $env:USERPROFILE ".pinchme\cord\bots.json"
 
     foreach ($c in $candidates) {
