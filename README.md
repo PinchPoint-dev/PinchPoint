@@ -128,8 +128,13 @@ PinchCord/
 │   ├── launch-fleet.ps1   # Windows Terminal fleet launcher
 │   └── bots.example.json  # Template config
 │
-├── prompts/               # Example prompt templates
-│   └── example-bot.md
+├── prompts/               # Example bot prompt templates
+│   ├── bee.md             # Lead engineer
+│   ├── beaver.md          # General dev
+│   ├── fox.md             # Researcher
+│   ├── badger.md          # Data manager
+│   ├── owl.md             # QA & oversight
+│   └── crow.md            # Team archivist
 │
 └── docs/                  # Reference
     ├── protocol.md        # Inter-bot communication rules

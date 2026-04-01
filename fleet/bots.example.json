@@ -1,15 +1,43 @@
 {
-  "Engineer": {
+  "Bee": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
-    "workDir": "C:\\Projects\\my-app",
-    "promptFile": "~/.pinchcord/prompts/engineer.md",
+    "workDir": "/path/to/your/project",
+    "promptFile": "/path/to/PinchCord/prompts/bee.md",
     "model": "claude-sonnet-4-6",
     "effort": "high"
   },
-  "Reviewer": {
-    "token": "ANOTHER_DISCORD_BOT_TOKEN",
-    "workDir": "C:\\Projects\\my-app",
-    "promptFile": "~/.pinchcord/prompts/reviewer.md",
+  "Beaver": {
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "workDir": "/path/to/your/project",
+    "promptFile": "/path/to/PinchCord/prompts/beaver.md",
+    "model": "claude-sonnet-4-6",
+    "effort": "high"
+  },
+  "Fox": {
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "workDir": "/path/to/your/project",
+    "promptFile": "/path/to/PinchCord/prompts/fox.md",
+    "model": "claude-sonnet-4-6",
+    "effort": "medium"
+  },
+  "Badger": {
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "workDir": "/path/to/your/project",
+    "promptFile": "/path/to/PinchCord/prompts/badger.md",
+    "model": "claude-sonnet-4-6",
+    "effort": "medium"
+  },
+  "Owl": {
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "workDir": "/path/to/your/project",
+    "promptFile": "/path/to/PinchCord/prompts/owl.md",
+    "model": "claude-sonnet-4-6",
+    "effort": "high"
+  },
+  "Crow": {
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "workDir": "/path/to/your/project",
+    "promptFile": "/path/to/PinchCord/prompts/crow.md",
     "model": "claude-sonnet-4-6",
     "effort": "high"
   }
