@@ -2,7 +2,9 @@
 
 Orchestrate a team of Claude Code agents through Discord — shared channels, inter-bot communication, and fleet management.
 
-PinchCord is an MCP server that connects Claude Code sessions to Discord. Run one bot or an entire fleet. Bots can talk to each other, respond to slash commands, manage threads, and coordinate work — all through a shared Discord channel.
+PinchCord is an MCP server + Claude Code plugin that connects Claude Code sessions to Discord. Run one bot or an entire fleet. Bots can talk to each other, respond to slash commands, manage threads, and coordinate work — all through a shared Discord channel.
+
+PinchCord is part of the **PinchPoint** suite. This repo also ships skills for Point (knowledge API) and Pinch (scheduling) as they mature.
 
 ## How it works
 
@@ -46,10 +48,10 @@ Set up your PinchMe directory. This is where your bot config lives — either in
 
 ```bash
 # Option A: Project-local (recommended — config lives with your project)
-cp -r PinchCord/fleet/pinchme-template .pinchme
+cp -r PinchCord/setup/pinchme-template .pinchme
 
 # Option B: Global (one fleet across all projects)
-cp -r PinchCord/fleet/pinchme-template ~/.pinchme
+cp -r PinchCord/setup/pinchme-template ~/.pinchme
 ```
 
 Edit `.pinchme/cord/bots.json` with your bot tokens:
@@ -113,13 +115,16 @@ PinchCord is modular — each feature is an optional file in `modules/`. Remove 
 
 ```
 PinchCord/
-├── server.ts              # Entry point — loads modules, runs MCP server
+├── server.ts              # MCP server entry point
 ├── package.json
 ├── .mcp.json              # MCP server config
 ├── LICENSE                # Apache 2.0
 ├── NOTICE                 # Attribution
 │
-├── modules/               # Optional feature modules
+├── .claude-plugin/        # Claude Code plugin manifest
+│   └── plugin.json
+│
+├── modules/               # Optional MCP feature modules
 │   ├── comms.ts
 │   ├── threads.ts
 │   ├── channels.ts
@@ -131,10 +136,17 @@ PinchCord/
 │   ├── heartbeat.ts
 │   └── commands.ts
 │
+├── skills/                # Claude Code skills (by product)
+│   ├── cord/              # PinchCord skills
+│   │   └── fleet-management/  # Launch, approve, close bot tabs
+│   ├── point/             # Point API skills (future)
+│   └── pinch/             # Pinch skills (future)
+│
 ├── fleet/                 # Multi-bot fleet management
 │   ├── launch-fleet.ps1   # Windows Terminal fleet launcher
-│   ├── bots.example.json  # Template config
-│   └── pinchme-template/  # Scaffold for .pinchme/ directory
+│   ├── launch-bot.ps1     # Single-bot launcher (backoff, watchdog)
+│   ├── close-tab.ps1      # Close WT tabs by index
+│   └── bots.example.json  # Template config
 │
 ├── prompts/               # Example bot prompt templates
 │   ├── bee.md             # Lead engineer
@@ -143,6 +155,9 @@ PinchCord/
 │   ├── badger.md          # Data manager
 │   ├── owl.md             # QA & oversight
 │   └── crow.md            # Team archivist
+│
+├── setup/                 # First-time setup
+│   └── pinchme-template/  # Scaffold for .pinchme/ directory
 │
 └── docs/                  # Reference
     ├── protocol.md        # Inter-bot communication rules
@@ -160,9 +175,11 @@ Your bots and config live in a `.pinchme/` directory (project-local or global):
 │   ├── prompts/                   # Your bot system prompts (shareable)
 │   │   ├── engineer.md
 │   │   └── reviewer.md
+│   ├── agents/                    # Your custom agents
+│   ├── skills/                    # Project-specific skills
 │   ├── archives/                  # Team archive (shareable)
 │   └── logs/                      # Runtime logs (gitignored)
-├── point/                         # Point config (future PinchPoint products)
+├── point/                         # Point config (future)
 └── pinch/                         # Pinch config (future)
 ```
 

@@ -1,0 +1,11 @@
+{
+  "name": "pinchpoint",
+  "version": "0.1.0",
+  "description": "PinchPoint suite — Discord bot fleet (PinchCord), Point API, and Pinch deployment tools",
+  "skills": [
+    {
+      "name": "fleet-management",
+      "path": "skills/cord/fleet-management/SKILL.md"
+    }
+  ]
+}
