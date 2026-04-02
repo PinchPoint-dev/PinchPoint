@@ -96,7 +96,8 @@ function Write-BotLauncher {
     # since ${CLAUDE_PLUGIN_ROOT} only works in plugin mode.
     $mcpFlag = ""
     $repoRoot = (Get-Item (Split-Path -Parent $PinchCordRoot)).FullName
-    $resolvedWorkDir = if ([System.IO.Path]::IsPathRooted($workDir)) { $workDir } else { (Resolve-Path $workDir -ErrorAction SilentlyContinue)?.Path ?? $workDir }
+    $resolved = if ([System.IO.Path]::IsPathRooted($workDir)) { $workDir } else { try { (Resolve-Path $workDir -ErrorAction Stop).Path } catch { $workDir } }
+    $resolvedWorkDir = $resolved
     if ($resolvedWorkDir -and -not $resolvedWorkDir.StartsWith($repoRoot)) {
         $mcpConfigPath = "$env:TEMP\pinchcord-mcp-$($BotName.ToLower()).json"
         $pinchCordAbsolute = (Get-Item $PinchCordRoot).FullName
