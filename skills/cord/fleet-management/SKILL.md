@@ -48,7 +48,7 @@ wt -w PinchCord new-tab --title <BotName> powershell -ExecutionPolicy Bypass -Fi
 
 **MCP config:** Bots whose `workDir` is the project repo do NOT need `--mcp-config` — the project root `.mcp.json` is auto-discovered by Claude Code. Only bots with a `workDir` outside the project (e.g., Fox, Badger in a separate scrape repo) need `--mcp-config` pointing to the PinchCord MCP config.
 
-For a production launcher with backoff, circuit breaker, and watchdog, see `fleet/launch-resilient.ps1`. For a simpler multi-bot launcher, see `fleet/launch.ps1`.
+For the primary launcher, see `fleet/launch.ps1`. For unattended operation with auto-restart, backoff, and watchdog, see `fleet/launch-resilient.ps1`.
 
 ### 2. Auto-Approve Dev Channel Prompt
 
@@ -120,5 +120,5 @@ For detailed gotchas, failed approaches, and incident history, consult `referenc
 
 ## Fleet Scripts
 
-- **`fleet/launch-resilient.ps1`** — Production bot launcher with restart loop, exponential backoff, circuit breaker, hung-session watchdog, and session quarantine
-- **`fleet/launch.ps1`** — Multi-bot launcher: reads bots.json, opens each bot as a WT tab, auto-approves
+- **`fleet/launch.ps1`** — Primary launcher: reads bots.json, opens each bot as a WT tab, auto-approves
+- **`fleet/launch-resilient.ps1`** — Resilient launcher with restart loop, exponential backoff, circuit breaker, hung-session watchdog, and session quarantine
