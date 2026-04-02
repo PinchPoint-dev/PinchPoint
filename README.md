@@ -37,8 +37,8 @@ Each bot is a Claude Code process with PinchCord loaded as an MCP server. A Disc
 ### 2. Install PinchCord
 
 ```bash
-git clone https://github.com/PinchPoint-dev/PinchCord.git
-cd PinchCord
+git clone https://github.com/PinchPoint-dev/PinchPoint.git .pinchpoint
+cd .pinchpoint
 bun install
 ```
 
@@ -177,8 +177,8 @@ Your bots and config live in a `.pinchme/` directory (project-local or global):
 │   │   └── reviewer.md
 │   ├── agents/                    # Your custom agents
 │   ├── skills/                    # Project-specific skills
-│   ├── archives/                  # Team archive (shareable)
 │   └── logs/                      # Runtime logs (gitignored)
+├── mind/                          # Team archive / institutional memory
 ├── point/                         # Point config (future)
 └── pinch/                         # Pinch config (future)
 ```

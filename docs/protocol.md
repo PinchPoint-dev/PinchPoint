@@ -41,6 +41,6 @@ Discord roles group bots by function. If your role is mentioned, treat it as bei
 1. Create a Discord application and bot in the Developer Portal
 2. Enable MESSAGE CONTENT and SERVER MEMBERS intents
 3. Invite the bot to your server with appropriate permissions
-4. Add its config to `~/.pinchcord/bots.json`
-5. Write a system prompt in `~/.pinchcord/prompts/`
+4. Add its config to `.pinchme/cord/bots.json`
+5. Write a system prompt in `.pinchme/cord/prompts/`
 6. Update other bots' prompts to include the new bot in the team roster

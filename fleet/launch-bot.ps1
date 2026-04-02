@@ -34,7 +34,8 @@ if ($Channel -ne "discord" -and $Channel -ne "telegram" -and $Channel -ne "pinch
 # Pinchcord logs go to the discord log dir (it's Discord under the hood)
 $logSubdir = if ($Channel -eq "pinchcord") { "discord" } else { $Channel }
 
-$PinchLogs = "C:\Users\samcd\Projects\Git-Repos\Pinchpoint\.Sam\logs\$logSubdir"
+$PinchLogs = Join-Path $PSScriptRoot "..\..\..\.pinchme\cord\logs\$logSubdir"
+if ($env:PINCHCORD_LOG_DIR) { $PinchLogs = "$env:PINCHCORD_LOG_DIR\$logSubdir" }
 New-Item -ItemType Directory -Force -Path $PinchLogs | Out-Null
 
 # ── Auto-relaunch in a real console if stdin is detached ──────────────
@@ -161,10 +162,11 @@ while ($true) {
     # Build channel flag based on -Channel parameter
     if ($Channel -eq "pinchcord") {
         $channelFlag = "--dangerously-load-development-channels server:pinchcord"
-        # Bots outside the Pinchpoint repo need --mcp-config to locate the pinchcord MCP server
-        $pinchpointDir = "C:\Users\samcd\Projects\Git-Repos\Pinchpoint"
-        if ($WorkDir -ne $pinchpointDir) {
-            $channelFlag += " --mcp-config `"$pinchpointDir\.PinchBridge\pinchcord\pinchcord-mcp.json`""
+        # Bots outside the project repo need --mcp-config to locate the pinchcord MCP server
+        $projectDir = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+        if ((Resolve-Path $WorkDir).Path -ne $projectDir) {
+            $mcpConfig = Join-Path $projectDir ".mcp.json"
+            $channelFlag += " --mcp-config `"$mcpConfig`""
         }
     } elseif ($Channel -eq "discord") {
         $channelFlag = "--channels plugin:discord@claude-plugins-official"
