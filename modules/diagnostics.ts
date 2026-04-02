@@ -61,8 +61,8 @@ function rotateIfNeeded(): void {
     const lines = raw.split('\n')
     const kept = lines.slice(-ROTATE_KEEP_LINES)
     writeFileSync(LOG_FILE, kept.join('\n'), { mode: 0o600 })
-  } catch {
-    // Rotation failure is non-fatal.
+  } catch (err) {
+    process.stderr.write(`pinchcord diagnostics: log rotation failed: ${err}\n`)
   }
 }
 

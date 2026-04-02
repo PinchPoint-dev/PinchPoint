@@ -72,7 +72,9 @@ export async function init(client: Client): Promise<void> {
         } else {
           await interaction.reply({ content: `Command failed: ${err}`, ephemeral: true })
         }
-      } catch { /* give up */ }
+      } catch (replyErr) {
+        process.stderr.write(`pinchcord commands: error reply also failed: ${replyErr}\n`)
+      }
     }
   })
 }

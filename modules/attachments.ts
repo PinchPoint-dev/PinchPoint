@@ -192,7 +192,7 @@ function runCleanup(inboxDir: string): void {
   try {
     entries = readdirSync(inboxDir)
   } catch {
-    return // Directory doesn't exist yet — nothing to clean.
+    return // Directory doesn't exist yet — nothing to clean (expected on first run).
   }
 
   const cutoff = Date.now() - MAX_AGE_MS

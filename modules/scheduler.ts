@@ -105,7 +105,8 @@ export function cancel(id: string): boolean {
   try {
     rmSync(filePath)
     return true
-  } catch {
+  } catch (err) {
+    process.stderr.write(`pinchcord scheduler: cancel failed for "${id}": ${err}\n`)
     return false
   }
 }
@@ -126,7 +127,8 @@ export function listPending(): ScheduledMessage[] {
       }
     }
     return messages.sort((a, b) => new Date(a.sendAt).getTime() - new Date(b.sendAt).getTime())
-  } catch {
+  } catch (err) {
+    process.stderr.write(`pinchcord scheduler: listPending failed: ${err}\n`)
     return []
   }
 }
@@ -161,7 +163,8 @@ async function checkScheduledInner(): Promise<void> {
   let files: string[]
   try {
     files = readdirSync(SCHEDULED_DIR).filter(f => f.endsWith('.json'))
-  } catch {
+  } catch (err) {
+    process.stderr.write(`pinchcord scheduler: readdir failed: ${err}\n`)
     return
   }
 
@@ -173,8 +176,8 @@ async function checkScheduledInner(): Promise<void> {
     try {
       const raw = readFileSync(filePath, 'utf8')
       msg = JSON.parse(raw) as ScheduledMessage
-    } catch {
-      // Corrupt file — remove it
+    } catch (err) {
+      process.stderr.write(`pinchcord scheduler: corrupt file "${file}", removing: ${err}\n`)
       rmSync(filePath, { force: true })
       continue
     }
