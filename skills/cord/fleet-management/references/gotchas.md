@@ -97,6 +97,6 @@ Possible causes:
 ### Bot Didn't Auto-Approve
 
 Possible causes:
-1. **Too fast:** Claude needs ~12 seconds to boot before the dev channels prompt appears. Increase the wait time.
+1. **Too fast:** Claude needs ~4 seconds to boot before the dev channels prompt appears. Increase the wait time if auto-approve fails consistently.
 2. **Wrong tab focused:** The Enter keystroke went to the wrong tab. Try multiple indices.
 3. **Window not in foreground:** `AppActivate("PinchCord")` must succeed before SendKeys will reach the right window.

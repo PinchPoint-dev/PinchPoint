@@ -147,7 +147,7 @@ if ($launched.Count -eq 0) {
 
 Write-Host ""
 Write-Host "Waiting for prompts..." -ForegroundColor Yellow
-Start-Sleep -Seconds 5
+Start-Sleep -Seconds 4
 
 # Auto-approve dev channels prompt on each tab
 Add-Type -AssemblyName System.Windows.Forms
