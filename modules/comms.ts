@@ -103,13 +103,22 @@ export async function finishCatchUp(handler: QueuedHandler): Promise<void> {
   catchUpComplete = true
   if (queue.length === 0) return
   draining = true
-  const pending = queue.splice(0)
   try {
-    for (const msg of pending) {
-      try {
-        await handler(msg)
-      } catch (err) {
-        process.stderr.write(`pinchcord comms: queued message failed: ${err}\n`)
+    // Loop until no new messages arrived during processing.
+    // Messages arriving while draining=true get pushed to queue by
+    // enqueueIfNeeded(), so we must drain until empty.
+    // Bounded to 5 iterations to prevent infinite spin if messages arrive
+    // faster than they're processed (queue is also capped at 100 in enqueueIfNeeded).
+    let iterations = 0
+    while (queue.length > 0 && iterations < 5) {
+      iterations++
+      const pending = queue.splice(0)
+      for (const msg of pending) {
+        try {
+          await handler(msg)
+        } catch (err) {
+          process.stderr.write(`pinchcord comms: queued message failed: ${err}\n`)
+        }
       }
     }
   } finally {
