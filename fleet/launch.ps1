@@ -1,8 +1,8 @@
-# launch-fleet.ps1 — Launch PinchCord bots as tabs in a named Windows Terminal window
+# launch.ps1 — Launch PinchCord bots as tabs in a named Windows Terminal window
 # Usage:
-#   .\launch-fleet.ps1 Engineer              # Launch just Engineer
-#   .\launch-fleet.ps1 Engineer Reviewer     # Launch Engineer and Reviewer
-#   .\launch-fleet.ps1                       # Launch all bots in config
+#   .\launch.ps1 Engineer              # Launch just Engineer
+#   .\launch.ps1 Engineer Reviewer     # Launch Engineer and Reviewer
+#   .\launch.ps1                       # Launch all bots in config
 #
 # Config resolution (first match wins):
 #   1. -ConfigPath flag (explicit override)

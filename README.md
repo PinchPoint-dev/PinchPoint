@@ -102,8 +102,8 @@ The `.pinchme/.gitignore` automatically protects `bots.json` (tokens) and `logs/
 **Fleet mode** (multiple bots as Windows Terminal tabs):
 
 ```powershell
-.\.pinchpoint\fleet\launch-fleet.ps1                     # all bots
-.\.pinchpoint\fleet\launch-fleet.ps1 Engineer Reviewer   # specific bots
+.\.pinchpoint\fleet\launch.ps1                     # all bots
+.\.pinchpoint\fleet\launch.ps1 Engineer Reviewer   # specific bots
 ```
 
 The launcher auto-detects your config: checks `.pinchme/cord/bots.json` in the current directory first, then `~/.pinchme/cord/bots.json` as a fallback.
@@ -167,8 +167,8 @@ PinchCord/
 │   └── pinch/             # Pinch skills (future)
 │
 ├── fleet/                 # Multi-bot fleet management
-│   ├── launch-fleet.ps1   # Windows Terminal fleet launcher
-│   ├── launch-bot.ps1     # Single-bot launcher (backoff, watchdog)
+│   ├── launch.ps1   # Windows Terminal fleet launcher
+│   ├── launch-resilient.ps1     # Single-bot launcher (backoff, watchdog)
 │   └── bots.example.json  # Template config
 │
 ├── prompts/               # Example bot prompt templates

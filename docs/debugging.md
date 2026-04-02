@@ -18,7 +18,7 @@
 
 Multiple bots writing `~/.claude.json` simultaneously causes file lock collisions.
 
-**Fix:** Launch bots via `launch-fleet.ps1` (auto-staggers 3s apart). If launching manually, wait 10s between each bot.
+**Fix:** Launch bots via `launch.ps1` (auto-staggers 3s apart). If launching manually, wait 10s between each bot.
 
 ## Hung session (bot alive but ignoring messages)
 

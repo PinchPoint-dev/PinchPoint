@@ -1,5 +1,5 @@
-# launch-bot.ps1 — resilient launcher for PinchCord bots
-# Usage: & "path\to\launch-bot.ps1" -BotName Bee -Token "..." -WorkDir "..." -PromptFile "..." -ProjectSlug "..." -ChannelId "..."
+# launch-resilient.ps1 — resilient launcher for PinchCord bots
+# Usage: & "path\to\launch-resilient.ps1" -BotName Bee -Token "..." -WorkDir "..." -PromptFile "..." -ProjectSlug "..." -ChannelId "..."
 #
 # Features:
 #   - Exponential backoff with jitter (3s → 60s cap) to prevent EBUSY death loops
