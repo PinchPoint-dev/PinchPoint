@@ -91,7 +91,7 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
   ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 ```
 
-**Fallback (if process-kill doesn't close the tab):** Use Ctrl+Shift+W via SendKeys — see `fleet/close-tab.ps1`.
+**Fallback (if process-kill doesn't close the tab):** Kill `claude.exe` for the bot, then send Ctrl+D via SendKeys to close the tab.
 
 ### 4. Restart a Bot
 
@@ -122,4 +122,3 @@ For detailed gotchas, failed approaches, and incident history, consult `referenc
 
 - **`fleet/launch-bot.ps1`** — Production bot launcher with restart loop, exponential backoff, circuit breaker, hung-session watchdog, and session quarantine
 - **`fleet/launch-fleet.ps1`** — Multi-bot launcher: reads bots.json, opens each bot as a WT tab, auto-approves
-- **`fleet/close-tab.ps1`** — Closes tab(s) by index using Ctrl+Shift+W (auto-sorts highest-first)

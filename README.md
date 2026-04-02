@@ -169,7 +169,6 @@ PinchCord/
 ├── fleet/                 # Multi-bot fleet management
 │   ├── launch-fleet.ps1   # Windows Terminal fleet launcher
 │   ├── launch-bot.ps1     # Single-bot launcher (backoff, watchdog)
-│   ├── close-tab.ps1      # Close WT tabs by index
 │   └── bots.example.json  # Template config
 │
 ├── prompts/               # Example bot prompt templates
