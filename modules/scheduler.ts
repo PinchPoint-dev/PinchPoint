@@ -121,7 +121,9 @@ export function listPending(): ScheduledMessage[] {
       try {
         const raw = readFileSync(join(SCHEDULED_DIR, file), 'utf8')
         messages.push(JSON.parse(raw) as ScheduledMessage)
-      } catch { /* skip corrupt files */ }
+      } catch (err) {
+        process.stderr.write(`pinchcord scheduler: corrupt scheduled file "${file}": ${err}\n`)
+      }
     }
     return messages.sort((a, b) => new Date(a.sendAt).getTime() - new Date(b.sendAt).getTime())
   } catch {

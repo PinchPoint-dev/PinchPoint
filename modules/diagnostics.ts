@@ -42,8 +42,8 @@ function ensureLogFile(): void {
     if (!existsSync(LOG_FILE)) {
       writeFileSync(LOG_FILE, '', { mode: 0o600 })
     }
-  } catch {
-    // If we can't create the dir/file, subsequent writes will fail silently.
+  } catch (err) {
+    process.stderr.write(`pinchcord diagnostics: ensureLogFile failed: ${err}\n`)
   }
 }
 

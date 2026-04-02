@@ -129,7 +129,9 @@ try {
     const m = line.match(/^(\w+)=(.*)$/)
     if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
   }
-} catch {}
+} catch (err) {
+  process.stderr.write(`pinchcord: .env load failed: ${err}\n`)
+}
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN
 const STATIC = process.env.DISCORD_ACCESS_MODE === 'static'
@@ -224,7 +226,9 @@ function readAccessFile(): Access {
     }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return defaultAccess()
-    try { renameSync(ACCESS_FILE, `${ACCESS_FILE}.corrupt-${Date.now()}`) } catch {}
+    try { renameSync(ACCESS_FILE, `${ACCESS_FILE}.corrupt-${Date.now()}`) } catch (renameErr) {
+      process.stderr.write(`pinchcord: failed to rename corrupt access.json: ${renameErr}\n`)
+    }
     log('pinchcord: access.json is corrupt, moved aside. Starting fresh.')
     return defaultAccess()
   }
@@ -344,14 +348,18 @@ async function isMentioned(msg: Message, extraPatterns?: string[]): Promise<bool
     try {
       const ref = await msg.fetchReference()
       if (ref.author.id === client.user?.id) return true
-    } catch {}
+    } catch (err) {
+      process.stderr.write(`pinchcord: fetchReference failed: ${err}\n`)
+    }
   }
 
   const text = msg.content
   for (const pat of extraPatterns ?? []) {
     try {
       if (new RegExp(pat, 'i').test(text)) return true
-    } catch {}
+    } catch (err) {
+      process.stderr.write(`pinchcord: invalid mentionPattern "${pat}": ${err}\n`)
+    }
   }
   return false
 }
@@ -900,7 +908,7 @@ client.on('interactionCreate', async (interaction: Interaction) => {
   if (!m) return
   const access = loadAccess()
   if (!access.allowFrom.includes(interaction.user.id)) {
-    await interaction.reply({ content: 'Not authorized.', ephemeral: true }).catch(() => {})
+    await interaction.reply({ content: 'Not authorized.', ephemeral: true }).catch(err => process.stderr.write(`pinchcord: interaction reply failed: ${err}\n`))
     return
   }
   const [, behavior, request_id] = m
@@ -908,7 +916,7 @@ client.on('interactionCreate', async (interaction: Interaction) => {
   if (behavior === 'more') {
     const details = pendingPermissions.get(request_id)
     if (!details) {
-      await interaction.reply({ content: 'Details no longer available.', ephemeral: true }).catch(() => {})
+      await interaction.reply({ content: 'Details no longer available.', ephemeral: true }).catch(err => process.stderr.write(`pinchcord: interaction reply failed: ${err}\n`))
       return
     }
     const { tool_name, description, input_preview } = details
@@ -924,17 +932,17 @@ client.on('interactionCreate', async (interaction: Interaction) => {
       new ButtonBuilder().setCustomId(`perm:allow:${request_id}`).setLabel('Allow').setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`perm:deny:${request_id}`).setLabel('Deny').setStyle(ButtonStyle.Danger),
     )
-    await interaction.update({ content: expanded, components: [row] }).catch(() => {})
+    await interaction.update({ content: expanded, components: [row] }).catch(err => process.stderr.write(`pinchcord: interaction update failed: ${err}\n`))
     return
   }
 
-  void mcp.notification({
+  mcp.notification({
     method: 'notifications/claude/channel/permission',
     params: { request_id, behavior },
-  })
+  }).catch(err => process.stderr.write(`pinchcord: permission notification failed: ${err}\n`))
   pendingPermissions.delete(request_id)
   const label = behavior === 'allow' ? 'Allowed' : 'Denied'
-  await interaction.update({ content: `${interaction.message.content}\n\n${label}`, components: [] }).catch(() => {})
+  await interaction.update({ content: `${interaction.message.content}\n\n${label}`, components: [] }).catch(err => process.stderr.write(`pinchcord: interaction update failed: ${err}\n`))
 })
 
 // ---------------------------------------------------------------------------
@@ -980,25 +988,25 @@ async function handleInbound(msg: Message): Promise<void> {
   // Permission-reply intercept — NEVER process from bots (gate() trust assumption)
   const permMatch = !msg.author.bot ? PERMISSION_REPLY_RE.exec(msg.content) : null
   if (permMatch) {
-    void mcp.notification({
+    mcp.notification({
       method: 'notifications/claude/channel/permission',
       params: {
         request_id: permMatch[2]!.toLowerCase(),
         behavior: permMatch[1]!.toLowerCase().startsWith('y') ? 'allow' : 'deny',
       },
-    })
-    void msg.react(permMatch[1]!.toLowerCase().startsWith('y') ? '✅' : '❌').catch(() => {})
+    }).catch(err => process.stderr.write(`pinchcord: permission notification failed: ${err}\n`))
+    msg.react(permMatch[1]!.toLowerCase().startsWith('y') ? '✅' : '❌').catch(err => process.stderr.write(`pinchcord: react failed: ${err}\n`))
     return
   }
 
   // Typing indicator (only for human messages)
   if (!msg.author.bot && 'sendTyping' in msg.channel) {
-    void msg.channel.sendTyping().catch(() => {})
+    void msg.channel.sendTyping().catch(() => {}) // intentionally silent — typing indicator is cosmetic
   }
 
   // Ack reaction
   if (accessResult?.ackReaction) {
-    void msg.react(accessResult.ackReaction).catch(() => {})
+    void msg.react(accessResult.ackReaction).catch(err => process.stderr.write(`pinchcord: ack react failed: ${err}\n`))
   }
 
   // PinchCord: download attachments immediately if module is loaded
