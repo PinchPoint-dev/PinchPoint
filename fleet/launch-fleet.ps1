@@ -69,7 +69,7 @@ $botsFile = "$env:TEMP\pinchcord-launch-bots.txt"
 if ($env:PINCHCORD_LAUNCHER -ne "1") {
     $env:PINCHCORD_LAUNCHER = "1"
     Set-Content -Path $botsFile -Value ($Bots -join "`n")
-    wt -w $Window new-tab --title "Launcher" powershell -NoExit -ExecutionPolicy Bypass -File $PSCommandPath
+    wt -w $Window new-tab --title "Launcher" powershell -ExecutionPolicy Bypass -File $PSCommandPath
     exit 0
 }
 
@@ -130,7 +130,7 @@ foreach ($botName in $Bots) {
 
     $scriptPath = Write-BotLauncher -BotName $botName -Config $config
 
-    wt -w $Window new-tab --title $botName powershell -NoExit -ExecutionPolicy Bypass -File $scriptPath
+    wt -w $Window new-tab --title $botName powershell -ExecutionPolicy Bypass -File $scriptPath
 
     Write-Host "  $botName tab added" -ForegroundColor DarkGray
     $launched += $botName

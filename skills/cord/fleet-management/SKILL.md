@@ -39,7 +39,7 @@ $scriptPath = "$env:TEMP\pinchcord-<botname>.ps1"
 Set-Content -Path $scriptPath -Value $script
 
 # Step 2: Open as new tab in PinchCord window
-wt -w PinchCord new-tab --title <BotName> powershell -NoExit -ExecutionPolicy Bypass -File $scriptPath
+wt -w PinchCord new-tab --title <BotName> powershell -ExecutionPolicy Bypass -File $scriptPath
 
 # Step 3: Wait for Claude to boot (~12 seconds)
 Start-Sleep -Seconds 12
@@ -81,48 +81,39 @@ foreach ($i in 7,6,5,4,3,2,1) {
 
 **Note:** The approve loop will also send Enter to your own tab if it falls within the index range. This is usually harmless, but be aware if your session has a pending confirmation dialog.
 
-### 3. Close a Tab
+### 3. Close / Stop a Bot
 
-**This is the ONLY method that reliably closes Windows Terminal tabs.** Do not use process-kill — it does not close the tab.
+Without `-NoExit`, killing the Claude process or the PowerShell host closes the tab automatically:
 
 ```powershell
-Add-Type -AssemblyName System.Windows.Forms
-$wshell = New-Object -ComObject WScript.Shell
-
-wt -w PinchCord focus-tab -t $tabIndex
-Start-Sleep -Milliseconds 400
-$wshell.AppActivate("PinchCord") | Out-Null
-Start-Sleep -Milliseconds 300
-[System.Windows.Forms.SendKeys]::SendWait("^+w")   # Ctrl+Shift+W = WT close tab
+# Find and kill a bot's process
+Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
+  Where-Object { $_.CommandLine -match 'claude' -and $_.CommandLine -match '<botname>' } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 ```
 
-**When closing multiple tabs**, go from highest index to lowest. Indices shift down when a tab closes — closing tab 3 makes tab 4 become tab 3.
-
-For a reusable close script, see `fleet/close-tab.ps1`.
+**Fallback (if process-kill doesn't close the tab):** Use Ctrl+Shift+W via SendKeys — see `fleet/close-tab.ps1`.
 
 ### 4. Restart a Bot
 
-Restart = close the tab + launch a new one. Always close first, then launch:
+Kill the process (tab closes automatically), then launch a new tab:
 
 ```powershell
-# Step 1: Close the existing tab (identify the index first)
-# Use the close-tab method from section 3
+# Step 1: Stop the bot (tab closes on its own)
+# Use the process-kill method from section 3
 
-# Step 2: Wait for tab to close
+# Step 2: Wait briefly
 Start-Sleep -Seconds 2
 
 # Step 3: Launch fresh (follow section 1)
 ```
 
-**Important:** After closing a tab, all tab indices shift. Account for this when launching the replacement.
-
 ## Critical Rules
 
 1. **Bot Launch Permission:** Only launch a bot when Sam explicitly names a specific bot to do it. "Launch Crow" with no name addressed = no bot acts. "Owl launch Crow" = only Owl acts.
-2. **Process-kill does NOT close tabs.** The `-NoExit` flag keeps the PowerShell host alive even after Claude exits. The tab lingers as a dead shell.
-3. **`wt focus-tab` silently ignores out-of-range indices.** There is no way to programmatically count tabs.
-4. **Never close your own tab.** Identify which tab index belongs to your own session and skip it.
-5. **Ask Sam to confirm** after close/launch operations — visual verification is the only reliable feedback.
+2. **`wt focus-tab` silently ignores out-of-range indices.** There is no way to programmatically count tabs.
+3. **Never kill your own process.** Exclude your own PID when killing processes by pattern.
+4. **Ask Sam to confirm** after close/launch operations — visual verification is the only reliable feedback.
 
 ## Troubleshooting
 

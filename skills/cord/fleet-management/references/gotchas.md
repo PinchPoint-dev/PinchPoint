@@ -1,21 +1,20 @@
 # PinchCord Fleet Management — Gotchas & Troubleshooting
 
-## What Does NOT Work (and Why)
+## Resolved Issues (post `-NoExit` removal, 2026-04-02)
 
-### Killing the Process Does Not Close the Tab
+The following issues existed when tabs were launched with `powershell -NoExit`. That flag was removed because it was the root cause of all tab-closing complexity — 4 failed approaches and 3 incidents traced back to it. Now tabs close automatically when the process exits.
 
-```powershell
-# THIS DOES NOT CLOSE THE TAB:
-Stop-Process -Id $pid -Force
-```
+### ~~Killing the Process Does Not Close the Tab~~ — RESOLVED
 
-**Why:** Tabs are opened with `powershell -NoExit`. The `-NoExit` flag keeps the PowerShell host alive even after the Claude child process exits. Killing Claude leaves a dead shell sitting at a `PS>` prompt. Killing the PowerShell process can leave the tab open as an empty/dead tab.
+Process-kill now works. `Stop-Process` closes the tab because there's no `-NoExit` keeping the shell alive.
 
-### Ctrl+D Does Not Work
+### ~~Ctrl+D Does Not Work~~ — RESOLVED
 
-Ctrl+D sends EOF, but PowerShell tabs launched with `-NoExit` ignore EOF. The shell stays open.
+No longer relevant without `-NoExit`.
 
-### Sending `exit` via SendKeys Is Dangerous
+## Still Dangerous
+
+### Sending `exit` via SendKeys Is Still Dangerous
 
 ```powershell
 # DANGEROUS — DO NOT USE:
