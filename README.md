@@ -48,10 +48,10 @@ Set up your PinchMe directory. This is where your bot config lives — either in
 
 ```bash
 # Option A: Project-local (recommended — config lives with your project)
-cp -r PinchCord/setup/pinchme-template .pinchme
+cp -r .pinchpoint/setup/pinchme-template .pinchme
 
 # Option B: Global (one fleet across all projects)
-cp -r PinchCord/setup/pinchme-template ~/.pinchme
+cp -r .pinchpoint/setup/pinchme-template ~/.pinchme
 ```
 
 Edit `.pinchme/cord/bots.json` with your bot tokens:
@@ -70,16 +70,15 @@ Edit `.pinchme/cord/bots.json` with your bot tokens:
 
 Write a system prompt for each bot in `.pinchme/cord/prompts/`. See `prompts/` in this repo for 6 example templates (Bee, Beaver, Fox, Badger, Owl, Crow).
 
-The `.pinchme/.gitignore` automatically protects `bots.json` (tokens) and `logs/` from being committed. Prompts and archives are safe to share.
+The `.pinchme/.gitignore` automatically protects `bots.json` (tokens) and `logs/` from being committed. Prompts and mind entries are safe to share. You should also add `.pinchme/` to your project's root `.gitignore` if you don't want any of it committed.
 
 ### 4. Launch
 
 **Fleet mode** (multiple bots as Windows Terminal tabs):
 
 ```powershell
-cd PinchCord/fleet
-.\launch-fleet.ps1                     # all bots
-.\launch-fleet.ps1 Engineer Reviewer   # specific bots
+.\.pinchpoint\fleet\launch-fleet.ps1                     # all bots
+.\.pinchpoint\fleet\launch-fleet.ps1 Engineer Reviewer   # specific bots
 ```
 
 The launcher auto-detects your config: checks `.pinchme/cord/bots.json` in the current directory first, then `~/.pinchme/cord/bots.json` as a fallback.
