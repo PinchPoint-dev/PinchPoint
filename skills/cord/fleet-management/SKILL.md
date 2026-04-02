@@ -41,8 +41,8 @@ Set-Content -Path $scriptPath -Value $script
 # Step 2: Open as new tab in PinchCord window
 wt -w PinchCord new-tab --title <BotName> powershell -ExecutionPolicy Bypass -File $scriptPath
 
-# Step 3: Wait for Claude to boot (~4 seconds)
-Start-Sleep -Seconds 4
+# Step 3: Wait for Claude to boot (~6 seconds)
+Start-Sleep -Seconds 6
 
 # Step 4: Auto-approve (see next section)
 ```
