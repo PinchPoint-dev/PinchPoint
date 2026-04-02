@@ -71,9 +71,13 @@ let heartbeat: HeartbeatModule | null = null
 let commands: CommandsModule | null = null
 
 async function loadModules(): Promise<void> {
+  const failed: string[] = []
   const tryLoad = async <T>(name: string): Promise<T | null> => {
     try { return await import(`./modules/${name}`) as T }
-    catch { return null }
+    catch (err) {
+      failed.push(`${name}: ${err instanceof Error ? err.message : String(err)}`)
+      return null
+    }
   }
   comms = await tryLoad<CommsModule>('comms')
   formats = await tryLoad<FormatsModule>('formats')
@@ -93,6 +97,9 @@ async function loadModules(): Promise<void> {
     scheduler && 'scheduler', heartbeat && 'heartbeat', commands && 'commands',
   ].filter(Boolean)
   log(`pinchcord: modules loaded: ${loaded.length ? loaded.join(', ') : '(none — running as official)'}`)
+  if (failed.length) {
+    process.stderr.write(`pinchcord: modules FAILED to load:\n${failed.map(f => `  - ${f}`).join('\n')}\n`)
+  }
 }
 
 // ---------------------------------------------------------------------------
