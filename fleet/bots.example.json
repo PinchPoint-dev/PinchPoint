@@ -15,14 +15,15 @@
   },
   "Fox": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
-    "workDir": "/path/to/your/project",
+    "workDir": "/path/to/another/repo",
     "promptFile": ".pinchme/cord/prompts/fox.md",
     "model": "claude-sonnet-4-6",
-    "effort": "medium"
+    "effort": "medium",
+    "extraArgs": ""
   },
   "Badger": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
-    "workDir": "/path/to/your/project",
+    "workDir": "/path/to/another/repo",
     "promptFile": ".pinchme/cord/prompts/badger.md",
     "model": "claude-sonnet-4-6",
     "effort": "medium"

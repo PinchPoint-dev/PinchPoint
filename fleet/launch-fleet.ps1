@@ -91,13 +91,28 @@ function Write-BotLauncher {
     $extraArgs = if ($Config.extraArgs) { $Config.extraArgs } else { "" }
     $sessionName = "$BotName-discord"
 
-    # Bots outside the PinchCord repo need --mcp-config to find the server
+    # Bots outside the PinchCord repo need --mcp-config to find the server.
+    # Generate a temp MCP config with the absolute path to PinchCordRoot,
+    # since ${CLAUDE_PLUGIN_ROOT} only works in plugin mode.
     $mcpFlag = ""
-    if ($workDir -ne (Get-Item $PinchCordRoot).FullName) {
-        $mcpConfig = Join-Path $PinchCordRoot "pinchcord-mcp.json"
-        if (Test-Path $mcpConfig) {
-            $mcpFlag = "--mcp-config `"$mcpConfig`""
-        }
+    $repoRoot = (Get-Item (Split-Path -Parent $PinchCordRoot)).FullName
+    $resolvedWorkDir = if ([System.IO.Path]::IsPathRooted($workDir)) { $workDir } else { (Resolve-Path $workDir -ErrorAction SilentlyContinue)?.Path ?? $workDir }
+    if ($resolvedWorkDir -and -not $resolvedWorkDir.StartsWith($repoRoot)) {
+        $mcpConfigPath = "$env:TEMP\pinchcord-mcp-$($BotName.ToLower()).json"
+        $pinchCordAbsolute = (Get-Item $PinchCordRoot).FullName
+        $escapedPath = $pinchCordAbsolute -replace '\\', '\\\\'
+        $mcpJson = @"
+{
+  "mcpServers": {
+    "pinchcord": {
+      "command": "bun",
+      "args": ["run", "--cwd", "$escapedPath", "--shell=bun", "--silent", "start"]
+    }
+  }
+}
+"@
+        Set-Content -Path $mcpConfigPath -Value $mcpJson
+        $mcpFlag = "--mcp-config `"$mcpConfigPath`""
     }
 
     $channelId = if ($Config.channelId) { $Config.channelId } else { $env:PINCHHUB_CHANNEL_ID }

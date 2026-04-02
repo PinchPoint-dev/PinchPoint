@@ -70,6 +70,31 @@ Edit `.pinchme/cord/bots.json` with your bot tokens:
 
 Write a system prompt for each bot in `.pinchme/cord/prompts/`. See `prompts/` in this repo for 6 example templates (Bee, Beaver, Fox, Badger, Owl, Crow).
 
+#### Cross-repo bots
+
+A bot's `workDir` can point to a different repo. This is useful when you have specialized bots that work in separate codebases but communicate through the same Discord channel.
+
+```json
+{
+  "Engineer": {
+    "token": "...",
+    "workDir": ".",
+    "promptFile": ".pinchme/cord/prompts/engineer.md",
+    "model": "claude-sonnet-4-6",
+    "effort": "high"
+  },
+  "Scraper": {
+    "token": "...",
+    "workDir": "C:/Users/you/Projects/OtherRepo",
+    "promptFile": ".pinchme/cord/prompts/scraper.md",
+    "model": "claude-sonnet-4-6",
+    "effort": "medium"
+  }
+}
+```
+
+When `workDir` points outside the project where PinchCord is installed, the launcher automatically generates an MCP config so the bot can still connect to Discord. No extra setup needed — just set the path and launch.
+
 The `.pinchme/.gitignore` automatically protects `bots.json` (tokens) and `logs/` from being committed. Prompts and mind entries are safe to share. You should also add `.pinchme/` to your project's root `.gitignore` if you don't want any of it committed.
 
 ### 4. Launch
