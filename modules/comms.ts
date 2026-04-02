@@ -121,6 +121,9 @@ export async function finishCatchUp(handler: QueuedHandler): Promise<void> {
         }
       }
     }
+    if (queue.length > 0) {
+      process.stderr.write(`pinchcord comms: drain loop hit iteration cap with ${queue.length} messages remaining\n`)
+    }
   } finally {
     draining = false
   }
