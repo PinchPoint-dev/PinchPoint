@@ -56,7 +56,13 @@ if (-not $ConfigPath -or -not (Test-Path $ConfigPath)) {
 
 Write-Host "Config: $ConfigPath" -ForegroundColor DarkGray
 
-$botsJson = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+try {
+    $botsJson = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+} catch {
+    Write-Host "ERROR: Failed to parse bots.json at $ConfigPath" -ForegroundColor Red
+    Write-Host "  $_" -ForegroundColor Yellow
+    exit 1
+}
 
 # Default to all bots if none specified
 if (-not $Bots -or $Bots.Count -eq 0) {
@@ -70,6 +76,10 @@ if ($env:PINCHCORD_LAUNCHER -ne "1") {
     $env:PINCHCORD_LAUNCHER = "1"
     Set-Content -Path $botsFile -Value ($Bots -join "`n")
     wt -w $Window new-tab --title "Launcher" powershell -ExecutionPolicy Bypass -File $PSCommandPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Failed to open Windows Terminal tab. Is 'wt' installed?" -ForegroundColor Red
+        exit 1
+    }
     exit 0
 }
 
@@ -147,6 +157,10 @@ foreach ($botName in $Bots) {
     $scriptPath = Write-BotLauncher -BotName $botName -Config $config
 
     wt -w $Window new-tab --title $botName powershell -ExecutionPolicy Bypass -File $scriptPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  $botName FAILED to open tab" -ForegroundColor Red
+        continue
+    }
 
     Write-Host "  $botName tab added" -ForegroundColor DarkGray
     $launched += $botName

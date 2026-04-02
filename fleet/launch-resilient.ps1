@@ -40,6 +40,12 @@ $env:PINCHHUB_CHANNEL_ID = $ChannelId
 $env:PINCHCORD_HEARTBEAT = "true"
 
 $sessionName = "$BotName-discord"
+
+# Validate WorkDir before entering restart loop
+if (-not (Test-Path $WorkDir)) {
+    Write-Host "ERROR: WorkDir '$WorkDir' does not exist" -ForegroundColor Red
+    exit 1
+}
 Set-Location $WorkDir
 
 # ── Singleton guard ───────────────────────────────────────────────────
@@ -73,6 +79,7 @@ if ($ExtraArgs) { $cliArgs += " $ExtraArgs" }
 $crashes = 0
 $backoff = 3
 
+try {
 while ($true) {
     $ts = Get-Date -Format o
     Write-Host "[$ts] $BotName starting" -ForegroundColor DarkGray
@@ -86,7 +93,14 @@ while ($true) {
     $psi.UseShellExecute = $false
     $psi.RedirectStandardError = $true
     $psi.WorkingDirectory = $WorkDir
-    $p = [System.Diagnostics.Process]::Start($psi)
+    try {
+        $p = [System.Diagnostics.Process]::Start($psi)
+    } catch {
+        $ts = Get-Date -Format o
+        Write-Host "[$ts] $BotName FATAL: failed to start claude — $_" -ForegroundColor Red
+        Add-Content "$PinchLogs\$BotName-events.log" "[$ts] FATAL: failed to start claude — $_"
+        break
+    }
 
     # Async stderr reader
     $p.BeginErrorReadLine()
@@ -197,4 +211,8 @@ while ($true) {
         Add-Content "$PinchLogs\$BotName-events.log" "[$ts2] restarting in ${wait}s (backoff=$backoff crashes=$crashes)"
         Start-Sleep $wait
     }
+}
+} finally {
+    # Clean up PID file so the singleton guard doesn't block future launches
+    if (Test-Path $pidFile) { Remove-Item $pidFile -Force -EA SilentlyContinue }
 }
