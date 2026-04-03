@@ -129,8 +129,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# ── Build channel flag ───────────────────────────────────────────────
-CHANNEL_FLAG="--dangerously-load-development-channels server:pinchcord"
+# ── Build claude args array ──────────────────────────────────────────
+CLAUDE_ARGS=(--dangerously-load-development-channels server:pinchcord)
 
 # Cross-repo bots need --mcp-config to find the pinchcord MCP server
 PINCHCORD_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -140,12 +140,16 @@ RESOLVED_WORK_DIR="$(cd "$WORK_DIR" 2>/dev/null && pwd || echo "$WORK_DIR")"
 if [[ "$RESOLVED_WORK_DIR" != "$PROJECT_DIR"* ]]; then
     MCP_CONFIG="$PROJECT_DIR/.mcp.json"
     if [[ -f "$MCP_CONFIG" ]]; then
-        CHANNEL_FLAG+=" --mcp-config \"$MCP_CONFIG\""
+        CLAUDE_ARGS+=(--mcp-config "$MCP_CONFIG")
     fi
 fi
 
-CLI_ARGS="$CHANNEL_FLAG --append-system-prompt-file \"$PROMPT_FILE\" --model $MODEL --effort $EFFORT --name $SESSION_NAME"
-[[ -n "$EXTRA_ARGS" ]] && CLI_ARGS+=" $EXTRA_ARGS"
+CLAUDE_ARGS+=(--append-system-prompt-file "$PROMPT_FILE" --model "$MODEL" --effort "$EFFORT" --name "$SESSION_NAME")
+if [[ -n "$EXTRA_ARGS" ]]; then
+    # Split extra args on whitespace (intentional — these come from bots.json)
+    read -ra extra_arr <<< "$EXTRA_ARGS"
+    CLAUDE_ARGS+=("${extra_arr[@]}")
+fi
 
 # ── Session directory (for watchdog) ─────────────────────────────────
 SESSION_DIR="$HOME/.claude/projects/$PROJECT_SLUG"
@@ -221,7 +225,7 @@ while true; do
 
     # Launch claude, capturing stderr
     cd "$WORK_DIR"
-    eval claude $CLI_ARGS 2>>"$STDERR_LOG" &
+    claude "${CLAUDE_ARGS[@]}" 2>>"$STDERR_LOG" &
     CLAUDE_PID=$!
 
     # Start the watchdog for this session

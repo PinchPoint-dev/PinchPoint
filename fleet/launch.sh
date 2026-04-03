@@ -138,12 +138,13 @@ for bot_name in "${BOTS[@]}"; do
     # Fall back to env for channel ID
     channel_id="${channel_id:-${PINCHHUB_CHANNEL_ID:-}}"
 
-    # Build MCP config for cross-repo bots
+    # Build MCP config for cross-repo bots (secure temp file)
     mcp_flag=""
     repo_root="$(cd "$PINCHCORD_ROOT/.." 2>/dev/null && pwd)"
     resolved_work_dir="$(cd "$work_dir" 2>/dev/null && pwd || echo "$work_dir")"
     if [[ "$resolved_work_dir" != "$repo_root"* ]]; then
-        mcp_config_path="/tmp/pinchcord-mcp-$(echo "$bot_name" | tr '[:upper:]' '[:lower:]').json"
+        mcp_config_path="$(mktemp /tmp/pinchcord-mcp-XXXXXX.json)"
+        chmod 600 "$mcp_config_path"
         cat > "$mcp_config_path" <<MCPEOF
 {
   "mcpServers": {
@@ -157,23 +158,21 @@ MCPEOF
         mcp_flag="--mcp-config \"$mcp_config_path\""
     fi
 
-    # Build the claude command
-    claude_cmd="export DISCORD_BOT_TOKEN='$token'"
-    claude_cmd+=" && export PINCHHUB_CHANNEL_ID='$channel_id'"
-    claude_cmd+=" && export PINCHCORD_HEARTBEAT=true"
-    claude_cmd+=" && cd '$work_dir'"
-    claude_cmd+=" && echo '=== $bot_name on PinchCord ==='"
-    claude_cmd+=" && claude --dangerously-load-development-channels server:pinchcord"
-    [[ -n "$mcp_flag" ]] && claude_cmd+=" $mcp_flag"
-    claude_cmd+=" --append-system-prompt-file '$prompt_file'"
-    claude_cmd+=" --model '$model'"
-    claude_cmd+=" --effort $effort"
-    claude_cmd+=" --name $session_name"
-    [[ -n "$extra_args" ]] && claude_cmd+=" $extra_args"
+    # Write a temp launch script (avoids token leaking into shell history)
+    bot_script="$(mktemp /tmp/pinchcord-bot-XXXXXX.sh)"
+    chmod 700 "$bot_script"
+    cat > "$bot_script" <<BOTEOF
+#!/usr/bin/env bash
+export DISCORD_BOT_TOKEN='$token'
+export PINCHHUB_CHANNEL_ID='$channel_id'
+export PINCHCORD_HEARTBEAT=true
+cd '$work_dir'
+echo '=== $bot_name on PinchCord ==='
+claude --dangerously-load-development-channels server:pinchcord $mcp_flag --append-system-prompt-file '$prompt_file' --model '$model' --effort $effort --name $session_name $extra_args
+BOTEOF
 
-    # Create a new tmux window for this bot
-    tmux new-window -t "$SESSION_NAME" -n "$bot_name" "$SHELL"
-    tmux send-keys -t "$SESSION_NAME:$bot_name" "$claude_cmd" Enter
+    # Create a new tmux window running the script (token stays out of history)
+    tmux new-window -t "$SESSION_NAME" -n "$bot_name" "bash $bot_script"
 
     echo "  $bot_name window added"
     launched+=("$bot_name")
