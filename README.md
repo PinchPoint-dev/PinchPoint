@@ -85,7 +85,7 @@ A bot's `workDir` can point to a different repo. This is useful when you have sp
   },
   "Scraper": {
     "token": "...",
-    "workDir": "C:/Users/you/Projects/OtherRepo",
+    "workDir": "/Users/you/Projects/OtherRepo",
     "promptFile": ".pinchme/cord/prompts/scraper.md",
     "model": "claude-sonnet-4-6",
     "effort": "medium"
@@ -99,9 +99,16 @@ The `.pinchme/.gitignore` automatically protects `bots.json` (tokens) and `logs/
 
 ### 4. Launch
 
-**Fleet mode** (multiple bots as Windows Terminal tabs):
+**Fleet mode** (multiple bots in terminal tabs/panes):
+
+```bash
+# Mac / Linux (tmux)
+./.pinchpoint/fleet/launch.sh                      # all bots
+./.pinchpoint/fleet/launch.sh Engineer Reviewer    # specific bots
+```
 
 ```powershell
+# Windows (Windows Terminal)
 .\.pinchpoint\fleet\launch.ps1                     # all bots
 .\.pinchpoint\fleet\launch.ps1 Engineer Reviewer   # specific bots
 ```
@@ -167,8 +174,10 @@ PinchCord/
 │   └── pinch/             # Pinch skills (future)
 │
 ├── fleet/                 # Multi-bot fleet management
-│   ├── launch.ps1   # Windows Terminal fleet launcher
-│   ├── launch-resilient.ps1     # Single-bot launcher (backoff, watchdog)
+│   ├── launch.sh          # Fleet launcher (Mac/Linux — tmux)
+│   ├── launch.ps1         # Fleet launcher (Windows — Windows Terminal)
+│   ├── launch-resilient.sh      # Resilient single-bot launcher (Mac/Linux)
+│   ├── launch-resilient.ps1     # Resilient single-bot launcher (Windows)
 │   └── bots.example.json  # Template config
 │
 ├── prompts/               # Example bot prompt templates
@@ -212,7 +221,8 @@ Your bots and config live in a `.pinchme/` directory (project-local or global):
 
 - [Bun](https://bun.sh) (runtime)
 - [Claude Code](https://claude.ai/claude-code) (CLI)
-- [Windows Terminal](https://aka.ms/terminal) (for fleet launcher — optional)
+- [tmux](https://github.com/tmux/tmux) (for fleet launcher on Mac/Linux — `brew install tmux`)
+- [Windows Terminal](https://aka.ms/terminal) (for fleet launcher on Windows — optional)
 - A Discord server with bot applications created
 
 ## Acknowledgements

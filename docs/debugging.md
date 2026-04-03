@@ -18,13 +18,13 @@
 
 Multiple bots writing `~/.claude.json` simultaneously causes file lock collisions.
 
-**Fix:** Launch bots via `launch.ps1` (auto-staggers 3s apart). If launching manually, wait 10s between each bot.
+**Fix:** Launch bots via the fleet launcher (`launch.sh` on Mac/Linux, `launch.ps1` on Windows) — both auto-stagger 3s apart. If launching manually, wait 10s between each bot.
 
 ## Hung session (bot alive but ignoring messages)
 
 The API occasionally drops streams mid-response, leaving `stop_reason=null` in the conversation JSONL. Claude Code thinks it's still generating and won't accept new messages.
 
-**Manual fix:** Kill the `claude.exe` PID, rename the hung `.jsonl` to `.hung` in `~/.claude/projects/<slug>/`, then relaunch.
+**Manual fix:** Kill the `claude` process (or `claude.exe` on Windows), rename the hung `.jsonl` to `.hung` in `~/.claude/projects/<slug>/`, then relaunch.
 
 ## Gateway disconnects
 
