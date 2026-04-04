@@ -3,6 +3,7 @@
 #   .\launch.ps1 Engineer              # Launch just Engineer
 #   .\launch.ps1 Engineer Reviewer     # Launch Engineer and Reviewer
 #   .\launch.ps1                       # Launch all bots in config
+#   .\launch.ps1 -UseWsl               # Launch via WSL + tmux (reliable, no focus issues)
 #
 # Config resolution (first match wins):
 #   1. -ConfigPath flag (explicit override)
@@ -10,13 +11,17 @@
 #   3. .pinchme/cord/bots.json in current working directory (project-local)
 #   4. ~/.pinchme/cord/bots.json in home directory (global)
 #
-# Each bot opens as a named tab in the "PinchCord" terminal window.
+# Windows (default): Opens each bot as a named tab in "PinchCord" terminal window.
+#   Auto-approves dev channels prompt with verify-and-retry (3 attempts per bot).
+# WSL (-UseWsl): Runs bots in a tmux session via WSL. Uses tmux send-keys for
+#   deterministic prompt approval. Monitor with: wsl tmux attach -t PinchCord
 
 param(
     [Parameter(Position=0, ValueFromRemainingArguments)]
     [string[]]$Bots,
     [string]$Window = "PinchCord",
-    [string]$ConfigPath = ""
+    [string]$ConfigPath = "",
+    [switch]$UseWsl
 )
 
 # ── Locate PinchCord server ────────────────────────────────────────
@@ -67,6 +72,28 @@ try {
 # Default to all bots if none specified
 if (-not $Bots -or $Bots.Count -eq 0) {
     $Bots = $botsJson.PSObject.Properties.Name
+}
+
+# ── WSL + tmux mode (delegate to launch.sh) ───────────────────────
+if ($UseWsl) {
+    $wslCheck = wsl --list --quiet 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: WSL is not installed or not available." -ForegroundColor Red
+        Write-Host "  Install WSL: wsl --install" -ForegroundColor Yellow
+        Write-Host "  Or omit -UseWsl to use Windows Terminal tabs." -ForegroundColor Yellow
+        exit 1
+    }
+    $launchSh = "$ScriptDir/launch.sh"
+    if (-not (Test-Path $launchSh)) {
+        Write-Host "ERROR: launch.sh not found at $launchSh" -ForegroundColor Red
+        exit 1
+    }
+    $wslPath = wsl wslpath -u ($launchSh -replace '\\', '/')
+    $wslConfig = wsl wslpath -u ($ConfigPath -replace '\\', '/')
+    $botArgs = ($Bots -join ' ')
+    Write-Host "Delegating to WSL + tmux..." -ForegroundColor Cyan
+    wsl bash $wslPath --config $wslConfig $botArgs
+    exit $LASTEXITCODE
 }
 
 # ── Self-relaunch into named terminal window ───────────────────────
@@ -145,7 +172,35 @@ Write-Host "PinchCord Fleet Launcher" -ForegroundColor Cyan
 Write-Host "Launching: $($Bots -join ', ')" -ForegroundColor DarkGray
 Write-Host ""
 
+# ── Helpers ───────────────────────────────────────────────────────
+Add-Type -AssemblyName System.Windows.Forms
+$wshell = New-Object -ComObject WScript.Shell
+
+function Test-BotApproved {
+    param([string]$BotName)
+    # After approval, claude loads MCP servers (spawns child processes).
+    # If the claude process for this bot has children, the prompt was accepted.
+    $claude = Get-CimInstance Win32_Process -Filter "Name='claude.exe'" |
+        Where-Object { $_.CommandLine -match [regex]::Escape("$BotName-discord") }
+    if (-not $claude) { return $false }
+    $pid = $claude[0].ProcessId
+    $children = @(Get-CimInstance Win32_Process |
+        Where-Object { $_.ParentProcessId -eq $pid })
+    return $children.Count -gt 0
+}
+
+function Approve-BotTab {
+    param([string]$BotName, [string]$WindowName)
+    # New tab is already active after creation. Bring WT window to foreground
+    # and send Enter. Target the WINDOW name, not the tab title.
+    $wshell.AppActivate($WindowName) | Out-Null
+    Start-Sleep -Milliseconds 400
+    $wshell.SendKeys('{ENTER}')
+}
+
+# ── Launch and approve each bot ───────────────────────────────────
 $launched = @()
+$failed = @()
 
 foreach ($botName in $Bots) {
     $config = $botsJson.$botName
@@ -156,16 +211,48 @@ foreach ($botName in $Bots) {
 
     $scriptPath = Write-BotLauncher -BotName $botName -Config $config
 
+    # Open tab (becomes the active tab in the WT window)
     wt -w $Window new-tab --title $botName powershell -ExecutionPolicy Bypass -File $scriptPath
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  $botName FAILED to open tab" -ForegroundColor Red
         continue
     }
 
-    Write-Host "  $botName tab added" -ForegroundColor DarkGray
-    $launched += $botName
+    Write-Host "  $botName tab opened" -ForegroundColor DarkGray
 
-    if ($Bots.Count -gt 1) {
+    # Wait for claude to start and show the dev channels prompt
+    Start-Sleep -Seconds 5
+
+    # Try to approve with verify-and-retry (up to 3 attempts)
+    $approved = $false
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        Write-Host "  $botName approving (attempt $attempt)..." -ForegroundColor Yellow
+
+        Approve-BotTab -BotName $botName -WindowName $Window
+
+        # Wait for MCP servers to spawn (indicates successful approval)
+        $waitSecs = if ($attempt -eq 1) { 12 } else { 8 }
+        Start-Sleep -Seconds $waitSecs
+
+        if (Test-BotApproved -BotName $botName) {
+            Write-Host "  $botName CONNECTED (attempt $attempt)" -ForegroundColor Green
+            $approved = $true
+            break
+        }
+
+        Write-Host "  $botName not connected yet" -ForegroundColor DarkGray
+    }
+
+    if ($approved) {
+        $launched += $botName
+    } else {
+        Write-Host "  $botName FAILED after 3 attempts — may need manual Enter" -ForegroundColor Red
+        $failed += $botName
+        $launched += $botName  # Still track it (tab exists, just needs manual approve)
+    }
+
+    # Stagger to avoid EBUSY on ~/.claude.json
+    if ($Bots.Count -gt 1 -and $botName -ne $Bots[-1]) {
         Start-Sleep -Seconds 3
     }
 }
@@ -176,20 +263,9 @@ if ($launched.Count -eq 0) {
 }
 
 Write-Host ""
-Write-Host "Auto-approving..." -ForegroundColor Yellow
-
-# Auto-approve dev channels prompt on each tab
-Add-Type -AssemblyName System.Windows.Forms
-$wshell = New-Object -ComObject WScript.Shell
-
-foreach ($botName in $launched) {
-    $wshell.AppActivate("$botName-discord") | Out-Null
-    Start-Sleep -Milliseconds 500
-    $wshell.SendKeys('{ENTER}')
-    Write-Host "  $botName approved" -ForegroundColor Green
-    Start-Sleep -Milliseconds 500
+if ($failed.Count -gt 0) {
+    Write-Host "WARNING: $($failed.Count) bot(s) may need manual approval: $($failed -join ', ')" -ForegroundColor Yellow
+    Write-Host "  Switch to their tab in '$Window' and press Enter." -ForegroundColor DarkGray
 }
-
-Write-Host ""
 Write-Host "Done. $($launched.Count) bot(s) in '$Window' window." -ForegroundColor Cyan
 Write-Host "This tab can be closed or kept for monitoring." -ForegroundColor DarkGray

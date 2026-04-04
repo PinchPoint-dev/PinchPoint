@@ -172,13 +172,14 @@ claude --dangerously-load-development-channels server:pinchcord $mcp_flag --appe
 BOTEOF
 
     # Create a new tmux window running the script (token stays out of history)
-    tmux new-window -t "$SESSION_NAME" -n "$bot_name" "bash $bot_script"
+    # exec bash keeps the window open after claude exits for debugging
+    tmux new-window -t "$SESSION_NAME" -n "$bot_name" "bash $bot_script; exec bash"
 
     echo "  $bot_name window added"
     launched+=("$bot_name")
 
     # Stagger launches to avoid EBUSY on ~/.claude.json
-    if [[ ${#BOTS[@]} -gt 1 ]]; then
+    if [[ ${#BOTS[@]} -gt 1 && "$bot_name" != "${BOTS[-1]}" ]]; then
         sleep 3
     fi
 done
