@@ -874,6 +874,13 @@ mcp.setRequestHandler(CallToolRequestSchema, async req => {
 })
 
 // ---------------------------------------------------------------------------
+// Module load — must happen BEFORE mcp.connect() so that list_tools returns
+// the full tool set when Claude Code requests it immediately on connection.
+// ---------------------------------------------------------------------------
+
+await loadModules()
+
+// ---------------------------------------------------------------------------
 // MCP connect
 // ---------------------------------------------------------------------------
 
@@ -1048,8 +1055,6 @@ async function handleInbound(msg: Message): Promise<void> {
 // ---------------------------------------------------------------------------
 // Gateway ready + startup catch-up
 // ---------------------------------------------------------------------------
-
-await loadModules()
 
 client.once('ready', async c => {
   log(`pinchcord: gateway connected as ${c.user.tag}`)
