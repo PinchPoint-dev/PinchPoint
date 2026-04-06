@@ -1,0 +1,10 @@
+{
+  "name": "pinchcord-codex-adapter",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Discord-to-Codex bridge for PinchCord — persistent (app-server) and exec (one-shot) modes",
+  "dependencies": {
+    "discord.js": "^14.16.0",
+    "ws": "^8.18.0"
+  }
+}
