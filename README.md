@@ -1,12 +1,14 @@
 # PinchCord
 
-Orchestrate a team of Claude Code agents through Discord — shared channels, inter-bot communication, and fleet management.
+Orchestrate a team of AI agents through Discord — shared channels, inter-bot communication, and fleet management. Supports both **Claude Code** and **OpenAI Codex** bots.
 
-PinchCord is an MCP server + Claude Code plugin that connects Claude Code sessions to Discord. Run one bot or an entire fleet. Bots can talk to each other, respond to slash commands, manage threads, and coordinate work — all through a shared Discord channel.
+PinchCord is an MCP server + Claude Code plugin that connects AI sessions to Discord. Run one bot or an entire fleet. Bots can talk to each other, respond to commands, manage threads, and coordinate work — all through a shared Discord channel.
 
 PinchCord is part of the **PinchPoint** suite. This repo also ships skills for Point (knowledge API) and Pinch (scheduling) as they mature.
 
 ## How it works
+
+### Claude bots
 
 ```
 You (Discord)
@@ -21,6 +23,28 @@ Claude Code (bot session)
 ```
 
 Each bot is a Claude Code process with PinchCord loaded as an MCP server. A Discord bot token determines which bot it authenticates as. A system prompt gives it a role.
+
+### Codex bots
+
+```
+You (Discord)
+    | messages
+Discord Server
+    +-- #hub channel
+         | WebSocket (discord.js)
+Codex Adapter (Node.js)
+    | WebSocket (JSON-RPC)
+Codex App-Server (persistent) or Codex CLI (exec)
+    | MCP
+PinchCord MCP Server
+    | stdio → Discord API
+Discord (replies)
+```
+
+Codex bots use a discord.js adapter for inbound messages and PinchCord MCP for outbound replies. Two modes are available:
+
+- **Persistent** — always-on watcher via Codex app-server (WebSocket). Maintains context across messages. Ideal for sentinel/observer bots.
+- **Exec** — spawns a fresh Codex process per message. Stateless. Ideal for quick-strike reviewers or on-demand tasks.
 
 ## Quick start
 
@@ -48,10 +72,10 @@ Set up your PinchMe directory. This is where your bot config lives — either in
 
 ```bash
 # Option A: Project-local (recommended — config lives with your project)
-cp -r .pinchpoint/setup/pinchme-template .pinchme
+cp -r .pinchpoint/cord/pinchme-template .pinchme
 
 # Option B: Global (one fleet across all projects)
-cp -r .pinchpoint/setup/pinchme-template ~/.pinchme
+cp -r .pinchpoint/cord/pinchme-template ~/.pinchme
 ```
 
 Edit `.pinchme/cord/bots.json` with your bot tokens:
@@ -103,14 +127,14 @@ The `.pinchme/.gitignore` automatically protects `bots.json` (tokens) and `logs/
 
 ```bash
 # Mac / Linux (tmux)
-./.pinchpoint/fleet/launch.sh                      # all bots
-./.pinchpoint/fleet/launch.sh Engineer Reviewer    # specific bots
+./.pinchpoint/cord/claude/launch.sh                      # all bots
+./.pinchpoint/cord/claude/launch.sh Engineer Reviewer    # specific bots
 ```
 
 ```powershell
 # Windows (Windows Terminal)
-.\.pinchpoint\fleet\launch.ps1                     # all bots
-.\.pinchpoint\fleet\launch.ps1 Engineer Reviewer   # specific bots
+.\.pinchpoint\cord\claude\launch.ps1                     # all bots
+.\.pinchpoint\cord\claude\launch.ps1 Engineer Reviewer   # specific bots
 ```
 
 The launcher auto-detects your config: checks `.pinchme/cord/bots.json` in the current directory first, then `~/.pinchme/cord/bots.json` as a fallback.
@@ -124,6 +148,163 @@ claude --dangerously-load-development-channels server:pinchcord \
   --append-system-prompt-file .pinchme/cord/prompts/engineer.md \
   --model claude-sonnet-4-6 --effort high --name Engineer-discord
 ```
+
+## Codex bot setup
+
+Codex bots (GPT-powered) run alongside Claude bots in the same Discord channel. They use a Node.js adapter that bridges Discord messages to OpenAI's Codex CLI.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org) 18+
+- [OpenAI Codex CLI](https://github.com/openai/codex) (`npm install -g @openai/codex`)
+- Authenticated Codex CLI (`codex login`)
+
+### Install adapter dependencies
+
+```bash
+cd .pinchpoint/cord/codex
+npm install
+```
+
+### Choose a mode
+
+#### Persistent mode (recommended)
+
+The bot stays alive, maintains conversation context, and watches the channel continuously. Uses the Codex app-server (WebSocket).
+
+**Step 1: Create a Codex config directory for your bot**
+
+Each Codex bot needs its own config directory to avoid conflicts:
+
+```bash
+# Create isolated config
+mkdir ~/.codex-mybot
+
+# Copy auth from your default Codex install
+cp ~/.codex/auth.json ~/.codex-mybot/auth.json
+```
+
+**Step 2: Create the bot's config**
+
+Edit `~/.codex-mybot/config.toml`:
+
+```toml
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+personality = "pragmatic"
+
+[windows]
+sandbox = "elevated"
+
+[features]
+multi_agent = true
+
+[projects.'C:\Users\you']
+trust_level = "trusted"
+
+# Register PinchCord MCP so the bot can reply to Discord
+[mcp_servers.pinchcord]
+command = "bun"
+args = ["run", "--cwd", "/path/to/.pinchpoint", "--shell=bun", "--silent", "start"]
+
+[mcp_servers.pinchcord.env]
+DISCORD_ACCESS_MODE = "static"
+DISCORD_BOT_TOKEN = "YOUR_CODEX_BOT_DISCORD_TOKEN"
+PINCHCORD_HEARTBEAT = "true"
+PINCHHUB_CHANNEL_ID = "YOUR_CHANNEL_ID"
+```
+
+**Step 3: Write a system prompt**
+
+Create `.pinchme/cord/prompts/mybot.md` with the bot's role, personality, and instructions. Key things to include:
+
+- When to speak vs stay silent (addressed by name, @role, @all)
+- Use the `reply` MCP tool to respond (not stdout)
+- Team roster (other bots and their roles)
+
+**Step 4: Start the app-server**
+
+```bash
+CODEX_HOME=~/.codex-mybot codex app-server --listen ws://127.0.0.1:3848
+```
+
+Wait for `READY` on the `/readyz` endpoint:
+
+```bash
+curl http://127.0.0.1:3848/readyz
+```
+
+**Step 5: Start the adapter**
+
+```bash
+cd .pinchpoint/cord/codex
+
+CODEX_BOT_NAME=MyBot \
+DISCORD_BOT_TOKEN=YOUR_CODEX_BOT_DISCORD_TOKEN \
+CODEX_APP_SERVER_URL=ws://127.0.0.1:3848 \
+node adapter-persistent.mjs
+```
+
+The adapter will log in to Discord and start forwarding messages to Codex. The bot replies via PinchCord MCP tools.
+
+#### Exec mode (one-shot)
+
+Spawns a fresh Codex process for each message. No persistent state. Simpler to set up but higher latency.
+
+```bash
+cd .pinchpoint/cord/codex
+
+CODEX_BOT_NAME=Reviewer \
+DISCORD_BOT_TOKEN=YOUR_CODEX_BOT_DISCORD_TOKEN \
+CODEX_WORK_DIR=/path/to/your/project \
+node adapter-exec.mjs
+```
+
+The exec adapter reads the system prompt from `.pinchme/cord/prompts/<botname>.md` and passes it to each Codex invocation. Replies are sent directly to Discord via discord.js (no MCP needed for exec mode).
+
+### Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CODEX_BOT_NAME` | `Panda` (persistent) / `Viper` (exec) | Bot display name and prompt file selector |
+| `DISCORD_BOT_TOKEN` | required | Discord bot token |
+| `PINCHHUB_CHANNEL_ID` | `1488108052887633970` | Discord channel to watch |
+| `CODEX_APP_SERVER_URL` | `ws://127.0.0.1:3848` | App-server WebSocket URL (persistent only) |
+| `CODEX_WORK_DIR` | repo root | Working directory for Codex |
+| `CODEX_BIN` | system codex | Path to Codex CLI binary (exec only) |
+| `CODEX_PROMPT_FILE` | `.pinchme/cord/prompts/<name>.md` | Override system prompt path |
+| `CODEX_MODEL` | `gpt-5.4` | Model to use (persistent only) |
+
+### Running multiple Codex bots
+
+Use different ports for each bot's app-server:
+
+```bash
+# Bot 1: persistent watcher on port 3848
+CODEX_HOME=~/.codex-panda codex app-server --listen ws://127.0.0.1:3848
+
+# Bot 2: persistent reviewer on port 3849
+CODEX_HOME=~/.codex-viper codex app-server --listen ws://127.0.0.1:3849
+```
+
+Each bot needs its own `CODEX_HOME` directory with a separate `config.toml` and `auth.json`.
+
+### Troubleshooting
+
+**Bot connects but never replies:**
+The most common issue. Check that:
+1. PinchCord MCP is registered in the bot's `config.toml` with the correct Discord token
+2. The bot's system prompt tells it to use the `reply` MCP tool
+3. The app-server was started with `CODEX_HOME` pointing to the bot's config directory
+
+**`waitingOnApproval` in logs:**
+The adapter auto-approves MCP tool calls. If you see this, ensure you're running the latest adapter version with the `handleServerRequest` function.
+
+**`EBUSY` errors (Claude bots):**
+Multiple Claude Code sessions can collide on `~/.claude.json`. Relaunch the affected bot. The resilient launcher (`launch-resilient.ps1`) auto-restarts on crash.
+
+**Turn starts but never completes:**
+Check that `CODEX_HOME` is set when starting the app-server. Without it, the default Codex config is used, which won't have PinchCord MCP registered.
 
 ## Modules
 
@@ -173,12 +354,21 @@ PinchCord/
 │   ├── point/             # Point API skills (future)
 │   └── pinch/             # Pinch skills (future)
 │
-├── fleet/                 # Multi-bot fleet management
-│   ├── launch.sh          # Fleet launcher (Mac/Linux — tmux)
-│   ├── launch.ps1         # Fleet launcher (Windows — Windows Terminal)
-│   ├── launch-resilient.sh      # Resilient single-bot launcher (Mac/Linux)
-│   ├── launch-resilient.ps1     # Resilient single-bot launcher (Windows)
-│   └── bots.example.json  # Template config
+├── cord/                  # Bot fleet management
+│   ├── claude/            # Claude Code bot launchers
+│   │   ├── launch.sh          # Fleet launcher (Mac/Linux — tmux)
+│   │   ├── launch.ps1         # Fleet launcher (Windows — Windows Terminal)
+│   │   ├── launch-resilient.sh      # Resilient single-bot launcher (Mac/Linux)
+│   │   └── launch-resilient.ps1     # Resilient single-bot launcher (Windows)
+│   │
+│   ├── codex/             # OpenAI Codex bot adapters
+│   │   ├── adapter-persistent.mjs   # Persistent mode (app-server WebSocket)
+│   │   ├── adapter-exec.mjs         # Exec mode (one-shot per message)
+│   │   ├── codex-output.mjs         # Output parser for exec mode
+│   │   └── package.json             # Node.js dependencies
+│   │
+│   ├── bots.example.json  # Template config
+│   └── pinchme-template/  # Scaffold for .pinchme/ directory
 │
 ├── prompts/               # Example bot prompt templates
 │   ├── bee.md             # Lead engineer
@@ -187,9 +377,6 @@ PinchCord/
 │   ├── badger.md          # Data manager
 │   ├── owl.md             # QA & oversight
 │   └── crow.md            # Team archivist
-│
-├── setup/                 # First-time setup
-│   └── pinchme-template/  # Scaffold for .pinchme/ directory
 │
 └── docs/                  # Reference
     ├── protocol.md        # Inter-bot communication rules
@@ -220,7 +407,9 @@ Your bots and config live in a `.pinchme/` directory (project-local or global):
 ## Requirements
 
 - [Bun](https://bun.sh) (runtime)
-- [Claude Code](https://claude.ai/claude-code) (CLI)
+- [Claude Code](https://claude.ai/claude-code) (CLI — for Claude bots)
+- [OpenAI Codex CLI](https://github.com/openai/codex) (for Codex bots — optional)
+- [Node.js](https://nodejs.org) 18+ (for Codex adapter — optional)
 - [tmux](https://github.com/tmux/tmux) (for fleet launcher on Mac/Linux — `brew install tmux`)
 - [Windows Terminal](https://aka.ms/terminal) (for fleet launcher on Windows — optional)
 - A Discord server with bot applications created

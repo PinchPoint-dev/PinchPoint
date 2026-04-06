@@ -13,21 +13,6 @@
     "model": "claude-sonnet-4-6",
     "effort": "high"
   },
-  "Fox": {
-    "token": "YOUR_DISCORD_BOT_TOKEN",
-    "workDir": "/path/to/another/repo",
-    "promptFile": ".pinchme/cord/prompts/fox.md",
-    "model": "claude-sonnet-4-6",
-    "effort": "medium",
-    "extraArgs": ""
-  },
-  "Badger": {
-    "token": "YOUR_DISCORD_BOT_TOKEN",
-    "workDir": "/path/to/another/repo",
-    "promptFile": ".pinchme/cord/prompts/badger.md",
-    "model": "claude-sonnet-4-6",
-    "effort": "medium"
-  },
   "Owl": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
@@ -35,11 +20,22 @@
     "model": "claude-sonnet-4-6",
     "effort": "high"
   },
-  "Crow": {
+  "Panda": {
+    "type": "codex",
+    "mode": "persistent",
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
-    "promptFile": ".pinchme/cord/prompts/crow.md",
-    "model": "claude-sonnet-4-6",
-    "effort": "high"
+    "promptFile": ".pinchme/cord/prompts/panda.md",
+    "model": "gpt-5.4",
+    "codexHome": "~/.codex-panda",
+    "appServerPort": 3848
+  },
+  "Viper": {
+    "type": "codex",
+    "mode": "exec",
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "workDir": "/path/to/your/project",
+    "promptFile": ".pinchme/cord/prompts/viper.md",
+    "model": "gpt-5.4"
   }
 }
