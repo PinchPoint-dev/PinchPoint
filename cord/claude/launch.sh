@@ -80,7 +80,7 @@ if [[ -z "$CONFIG_PATH" || ! -f "$CONFIG_PATH" ]]; then
     echo "" >&2
     echo "To get started:" >&2
     echo "  mkdir -p .pinchme/cord" >&2
-    echo "  cp <PinchCord>/fleet/bots.example.json .pinchme/cord/bots.json" >&2
+    echo "  cp <PinchCord>/cord/bots.example.json .pinchme/cord/bots.json" >&2
     echo "  # Edit bots.json with your Discord bot tokens" >&2
     exit 1
 fi

@@ -16,7 +16,7 @@ const BOT_NAME_LOWER = BOT_NAME.toLowerCase()
 const CHANNEL_ID = process.env.PINCHHUB_CHANNEL_ID || '1488108052887633970'
 const TOKEN = process.env.DISCORD_BOT_TOKEN
 const WORK_DIR = process.env.CODEX_WORK_DIR || resolve(__dirname, '../../..')
-const CODEX_BIN = process.env.CODEX_BIN || 'C:/Users/samcd/AppData/Roaming/npm/codex.cmd'
+const CODEX_BIN = process.env.CODEX_BIN || (process.platform === 'win32' ? 'codex.cmd' : 'codex')
 const CODEX_TIMEOUT = 180_000  // 3 minutes
 const PROMPT_FILE = process.env.CODEX_PROMPT_FILE || resolve(__dirname, `../../../.pinchme/cord/prompts/${BOT_NAME_LOWER}.md`)
 const SYSTEM_PROMPT = readFileSync(PROMPT_FILE, 'utf-8')

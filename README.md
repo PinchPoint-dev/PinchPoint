@@ -177,11 +177,15 @@ The bot stays alive, maintains conversation context, and watches the channel con
 Each Codex bot needs its own config directory to avoid conflicts:
 
 ```bash
-# Create isolated config
+# Mac / Linux
 mkdir ~/.codex-mybot
-
-# Copy auth from your default Codex install
 cp ~/.codex/auth.json ~/.codex-mybot/auth.json
+```
+
+```powershell
+# Windows (PowerShell)
+mkdir $env:USERPROFILE\.codex-mybot
+Copy-Item $env:USERPROFILE\.codex\auth.json $env:USERPROFILE\.codex-mybot\auth.json
 ```
 
 **Step 2: Create the bot's config**

@@ -54,7 +54,7 @@ if (-not $ConfigPath -or -not (Test-Path $ConfigPath)) {
     Write-Host ""
     Write-Host "To get started:" -ForegroundColor Cyan
     Write-Host "  mkdir -p .pinchme/cord" -ForegroundColor DarkGray
-    Write-Host "  cp <PinchCord>/fleet/bots.example.json .pinchme/cord/bots.json" -ForegroundColor DarkGray
+    Write-Host "  cp <PinchCord>/cord/bots.example.json .pinchme/cord/bots.json" -ForegroundColor DarkGray
     Write-Host "  # Edit bots.json with your Discord bot tokens" -ForegroundColor DarkGray
     exit 1
 }

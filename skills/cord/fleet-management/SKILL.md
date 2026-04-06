@@ -31,10 +31,10 @@ The fleet launcher creates a tmux session and opens each bot as a named window:
 
 ```bash
 # Launch all bots
-./.pinchpoint/fleet/launch.sh
+./.pinchpoint/cord/claude/launch.sh
 
 # Launch specific bots
-./.pinchpoint/fleet/launch.sh Engineer Reviewer
+./.pinchpoint/cord/claude/launch.sh Engineer Reviewer
 ```
 
 Under the hood, each bot gets a tmux window that runs:
@@ -55,10 +55,10 @@ The launcher auto-approves the dev channels prompt by sending Enter to each tmux
 
 ```powershell
 # Launch all bots
-.\.pinchpoint\fleet\launch.ps1
+.\.pinchpoint\cord\claude\launch.ps1
 
 # Launch specific bots
-.\.pinchpoint\fleet\launch.ps1 Engineer Reviewer
+.\.pinchpoint\cord\claude\launch.ps1 Engineer Reviewer
 ```
 
 Creates a temporary PowerShell script per bot, opens each as a new WT tab, then auto-approves via `SendKeys`.
@@ -67,7 +67,7 @@ Creates a temporary PowerShell script per bot, opens each as a new WT tab, then 
 
 **MCP config:** Bots whose `workDir` is the project repo do NOT need `--mcp-config` — the project root `.mcp.json` is auto-discovered by Claude Code. Only bots with a `workDir` outside the project need `--mcp-config` pointing to the PinchCord MCP config. Both launchers handle this automatically.
 
-For unattended operation with auto-restart, backoff, and watchdog, see `fleet/launch-resilient.sh` (Mac/Linux) or `fleet/launch-resilient.ps1` (Windows).
+For unattended operation with auto-restart, backoff, and watchdog, see `cord/claude/launch-resilient.sh` (Mac/Linux) or `cord/claude/launch-resilient.ps1` (Windows).
 
 ### 2. Auto-Approve Dev Channel Prompt
 
@@ -113,14 +113,14 @@ Kill the bot, then launch a new one:
 tmux kill-window -t PinchCord:<BotName>
 sleep 2
 # Re-run launch.sh for that bot
-./.pinchpoint/fleet/launch.sh <BotName>
+./.pinchpoint/cord/claude/launch.sh <BotName>
 ```
 
 **Windows:**
 ```powershell
 # Kill the bot process, then:
 Start-Sleep -Seconds 2
-.\.pinchpoint\fleet\launch.ps1 <BotName>
+.\.pinchpoint\cord\claude\launch.ps1 <BotName>
 ```
 
 ### 5. View / Attach to Bots
@@ -154,7 +154,7 @@ tmux kill-session -t PinchCord              # Stop all bots
 
 ## Fleet Scripts
 
-- **`fleet/launch.sh`** — Fleet launcher for Mac/Linux (tmux)
-- **`fleet/launch.ps1`** — Fleet launcher for Windows (Windows Terminal)
-- **`fleet/launch-resilient.sh`** — Resilient launcher with restart loop, backoff, circuit breaker, watchdog (Mac/Linux)
-- **`fleet/launch-resilient.ps1`** — Resilient launcher with restart loop, backoff, circuit breaker, watchdog (Windows)
+- **`cord/claude/launch.sh`** — Fleet launcher for Mac/Linux (tmux)
+- **`cord/claude/launch.ps1`** — Fleet launcher for Windows (Windows Terminal)
+- **`cord/claude/launch-resilient.sh`** — Resilient launcher with restart loop, backoff, circuit breaker, watchdog (Mac/Linux)
+- **`cord/claude/launch-resilient.ps1`** — Resilient launcher with restart loop, backoff, circuit breaker, watchdog (Windows)
