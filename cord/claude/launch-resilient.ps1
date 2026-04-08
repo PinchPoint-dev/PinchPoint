@@ -1,4 +1,4 @@
-# launch-resilient.ps1 — resilient launcher for PinchCord bots
+﻿# launch-resilient.ps1 - resilient launcher for PinchCord bots
 # Usage: & "path\to\launch-resilient.ps1" -BotName Bee -Token "..." -WorkDir "..." -PromptFile "..." -ProjectSlug "..." -ChannelId "..."
 #
 # Features:
@@ -30,7 +30,7 @@ function Stop-ProcessTree([int]$RootPid) {
     Stop-Process -Id $RootPid -Force -EA SilentlyContinue
 }
 
-# Clear any API key env vars — bots use Max subscription auth, not API keys.
+# Clear any API key env vars - bots use Max subscription auth, not API keys.
 Remove-Item Env:\ANTHROPIC_API_KEY -EA SilentlyContinue
 Remove-Item Env:\CLAUDE_API_KEY -EA SilentlyContinue
 
@@ -97,8 +97,8 @@ while ($true) {
         $p = [System.Diagnostics.Process]::Start($psi)
     } catch {
         $ts = Get-Date -Format o
-        Write-Host "[$ts] $BotName FATAL: failed to start claude — $_" -ForegroundColor Red
-        Add-Content "$PinchLogs\$BotName-events.log" "[$ts] FATAL: failed to start claude — $_"
+        Write-Host "[$ts] $BotName FATAL: failed to start claude - $_" -ForegroundColor Red
+        Add-Content "$PinchLogs\$BotName-events.log" "[$ts] FATAL: failed to start claude - $_"
         break
     }
 
@@ -112,7 +112,7 @@ while ($true) {
 
     # ── Hung-session watchdog ──────────────────────────────────────────
     # Every 5 min: if last assistant message has stop_reason=null AND file
-    # hasn't been modified in 5+ min, the API stream died — kill to restart.
+    # hasn't been modified in 5+ min, the API stream died - kill to restart.
     $sessionDir = "$env:USERPROFILE\.claude\projects\$ProjectSlug"
     $watchdog = Start-Job -ScriptBlock {
         param($ClaudePid, $SessDir, $Name, $LogPath)

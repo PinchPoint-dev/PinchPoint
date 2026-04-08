@@ -1,4 +1,4 @@
-# launch.ps1 — Launch PinchCord bots as tabs in a named Windows Terminal window
+﻿# launch.ps1 - Launch PinchCord bots as tabs in a named Windows Terminal window
 # Usage:
 #   .\launch.ps1 Engineer              # Launch just Engineer
 #   .\launch.ps1 Engineer Reviewer     # Launch Engineer and Reviewer
@@ -102,7 +102,7 @@ $botsFile = "$env:TEMP\pinchcord-launch-bots.txt"
 if ($env:PINCHCORD_LAUNCHER -ne "1") {
     $env:PINCHCORD_LAUNCHER = "1"
     Set-Content -Path $botsFile -Value ($Bots -join "`n")
-    wt -w $Window new-tab --title "Launcher" powershell -ExecutionPolicy Bypass -File $PSCommandPath
+    wt -w $Window new-tab --title "Launcher" powershell -ExecutionPolicy Bypass -File $PSCommandPath -ConfigPath "$ConfigPath"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Failed to open Windows Terminal tab. Is 'wt' installed?" -ForegroundColor Red
         exit 1
@@ -246,7 +246,7 @@ foreach ($botName in $Bots) {
     if ($approved) {
         $launched += $botName
     } else {
-        Write-Host "  $botName FAILED after 3 attempts — may need manual Enter" -ForegroundColor Red
+        Write-Host "  $botName FAILED after 3 attempts - may need manual Enter" -ForegroundColor Red
         $failed += $botName
         $launched += $botName  # Still track it (tab exists, just needs manual approve)
     }
