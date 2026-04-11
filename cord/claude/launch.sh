@@ -188,6 +188,9 @@ MCPEOF
         if [[ "$work_dir" == *":"* ]]; then
             work_dir="$(wslpath -u "$work_dir" 2>/dev/null || echo "$work_dir")"
         fi
+        if [[ "$prompt_file" == *":"* ]]; then
+            prompt_file="$(wslpath -u "$prompt_file" 2>/dev/null || echo "$prompt_file")"
+        fi
     fi
 
     # Write a temp launch script (avoids token leaking into shell history)
@@ -271,7 +274,7 @@ echo "  tmux capture-pane -t $SESSION_NAME:Bee -p # Read a bot's terminal"
 
 # ── Auto-attach in Windows Terminal (WSL only) ──────────────────────
 if $ATTACH; then
-    if command -v wt.exe &>/dev/null; then
+    if command -v wt.exe &>/dev/null && wt.exe --version &>/dev/null; then
         echo ""
         echo "Opening Windows Terminal tab..."
         wt.exe -w "$SESSION_NAME" new-tab --title "${launched[0]}" wsl tmux attach -t "$SESSION_NAME"
