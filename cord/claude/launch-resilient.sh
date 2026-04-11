@@ -97,7 +97,7 @@ export DISCORD_BOT_TOKEN="$TOKEN"
 export PINCHHUB_CHANNEL_ID="$CHANNEL_ID"
 export PINCHCORD_HEARTBEAT="true"
 
-SESSION_NAME="${BOT_NAME}-discord"
+SESSION_NAME="${BOT_NAME}"
 
 # Validate work directory
 if [[ ! -d "$WORK_DIR" ]]; then

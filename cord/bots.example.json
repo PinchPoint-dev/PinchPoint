@@ -4,21 +4,24 @@
     "workDir": "/path/to/your/project",
     "promptFile": ".pinchme/cord/prompts/bee.md",
     "model": "claude-sonnet-4-6",
-    "effort": "high"
+    "effort": "high",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
   },
   "Beaver": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
     "promptFile": ".pinchme/cord/prompts/beaver.md",
     "model": "claude-sonnet-4-6",
-    "effort": "high"
+    "effort": "high",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
   },
   "Owl": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "/path/to/your/project",
     "promptFile": ".pinchme/cord/prompts/owl.md",
     "model": "claude-sonnet-4-6",
-    "effort": "high"
+    "effort": "high",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
   },
   "Panda": {
     "type": "codex",

@@ -92,7 +92,7 @@ if ($UseWsl) {
     $wslConfig = wsl wslpath -u ($ConfigPath -replace '\\', '/')
     $botArgs = ($Bots -join ' ')
     Write-Host "Delegating to WSL + tmux..." -ForegroundColor Cyan
-    wsl bash $wslPath --config $wslConfig $botArgs
+    wsl bash $wslPath --config $wslConfig --attach $botArgs
     exit $LASTEXITCODE
 }
 
@@ -126,7 +126,7 @@ function Write-BotLauncher {
     $model = if ($Config.model) { $Config.model } else { "claude-sonnet-4-6" }
     $effort = if ($Config.effort) { $Config.effort } else { "high" }
     $extraArgs = if ($Config.extraArgs) { $Config.extraArgs } else { "" }
-    $sessionName = "$BotName-discord"
+    $sessionName = "$BotName"
 
     # Bots outside the PinchCord repo need --mcp-config to find the server.
     # Generate a temp MCP config with the absolute path to PinchCordRoot,
@@ -181,7 +181,7 @@ function Test-BotApproved {
     # After approval, claude loads MCP servers (spawns child processes).
     # If the claude process for this bot has children, the prompt was accepted.
     $claude = Get-CimInstance Win32_Process -Filter "Name='claude.exe'" |
-        Where-Object { $_.CommandLine -match [regex]::Escape("$BotName-discord") }
+        Where-Object { $_.CommandLine -match [regex]::Escape("$BotName") }
     if (-not $claude) { return $false }
     $pid = $claude[0].ProcessId
     $children = @(Get-CimInstance Win32_Process |

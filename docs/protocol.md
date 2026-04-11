@@ -40,7 +40,11 @@ Discord roles group bots by function. If your role is mentioned, treat it as bei
 
 1. Create a Discord application and bot in the Developer Portal
 2. Enable MESSAGE CONTENT and SERVER MEMBERS intents
-3. Invite the bot to your server with appropriate permissions
-4. Add its config to `.pinchme/cord/bots.json`
-5. Write a system prompt in `.pinchme/cord/prompts/`
-6. Update other bots' prompts to include the new bot in the team roster
+3. **Invite the bot to your server** (creating a token does NOT auto-join it)
+4. Add its config to `.pinchme/cord/bots.json` (top-level object keyed by name, NOT an array)
+5. **Set explicit `channelId`** in the bot's config (without it, defaults to PinchPoint's hub)
+6. **Add the hub channel to `~/.claude/channels/discord/access.json`** (without it, messages silently don't deliver)
+7. Write a system prompt in `.pinchme/cord/prompts/`
+8. Update other bots' prompts to include the new bot in the team roster
+
+For full setup guide including troubleshooting, see [new-server-setup.md](new-server-setup.md).

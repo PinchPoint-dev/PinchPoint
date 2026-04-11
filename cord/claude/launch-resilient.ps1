@@ -39,7 +39,7 @@ $env:DISCORD_BOT_TOKEN = $Token
 $env:PINCHHUB_CHANNEL_ID = $ChannelId
 $env:PINCHCORD_HEARTBEAT = "true"
 
-$sessionName = "$BotName-discord"
+$sessionName = "$BotName"
 
 # Validate WorkDir before entering restart loop
 if (-not (Test-Path $WorkDir)) {

@@ -87,10 +87,13 @@ Edit `.pinchme/cord/bots.json` with your bot tokens:
     "workDir": ".",
     "promptFile": ".pinchme/cord/prompts/engineer.md",
     "model": "claude-sonnet-4-6",
-    "effort": "high"
+    "effort": "high",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
   }
 }
 ```
+
+> **`channelId` is required.** This is the Discord snowflake ID of your hub channel (e.g., `"1492138400008896604"`). Without it, the bot defaults to PinchPoint's channel ID, causing it to post in the wrong server. Get it by right-clicking the channel in Discord with Developer Mode enabled.
 
 Write a system prompt for each bot in `.pinchme/cord/prompts/`. See `prompts/` in this repo for 6 example templates (Bee, Beaver, Fox, Badger, Owl, Crow).
 
@@ -105,14 +108,16 @@ A bot's `workDir` can point to a different repo. This is useful when you have sp
     "workDir": ".",
     "promptFile": ".pinchme/cord/prompts/engineer.md",
     "model": "claude-sonnet-4-6",
-    "effort": "high"
+    "effort": "high",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
   },
   "Scraper": {
     "token": "...",
     "workDir": "/Users/you/Projects/OtherRepo",
     "promptFile": ".pinchme/cord/prompts/scraper.md",
     "model": "claude-sonnet-4-6",
-    "effort": "medium"
+    "effort": "medium",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
   }
 }
 ```
