@@ -137,15 +137,23 @@ If it doesn't exist, create it:
 
 ### 8. Launch
 
+**Option A: WSL + tmux (recommended)** -- headless, no focus needed, thinking spinner works:
+
+```bash
+# From WSL (or via: wsl bash -c '...')
+cd /mnt/c/Users/you/Projects/Git-Repos/YourProject
+bash .pinchpoint/cord/claude/launch.sh --attach Cockatoo
+```
+
+The launcher creates a tmux session, adds the bot as a named window, auto-approves prompts via `tmux send-keys` (no foreground focus required), and optionally opens a Windows Terminal tab attached to the session.
+
+**Option B: Windows Terminal** -- visual tabs with SendKeys:
+
 ```powershell
 .\.pinchpoint\cord\claude\launch.ps1 Cockatoo
 ```
 
-The launcher:
-1. Reads bots.json for the bot's config
-2. Opens a new Windows Terminal tab named after the bot
-3. Starts Claude Code with the system prompt
-4. Auto-approves the dev channel prompt via SendKeys (~12s delay)
+The launcher reads bots.json, opens a new WT tab, starts Claude Code, and auto-approves via SendKeys (~12s delay). Requires foreground focus during approval.
 
 **Verify:** After launch, send a test message in the hub channel. The bot should respond within 10-20 seconds.
 
@@ -158,9 +166,23 @@ The launcher:
 | Bot not in server member list | Never invited | Generate OAuth2 invite URL and authorize |
 | "Invalid token" error on launch | Wrong token in bots.json | Copy fresh token from Developer Portal |
 | Tab title shows "Claude Code" not bot name | cmd.exe title override | Known issue -- cosmetic only, doesn't affect function |
+| No thinking spinner in tmux tab | `set-titles` not enabled | launch.sh sets this automatically; verify tmux 3.3+ |
+| `/compact` becomes `C:/Program Files/Git/compact` | MSYS2 path mangling | Run tmux commands from WSL, not Git Bash; or prefix with `MSYS_NO_PATHCONV=1` |
 | Bot responds in PinchHub instead of your hub | channelId defaulting to PinchPoint's | Set explicit channelId in bots.json |
 | launch.ps1 can't find bot config | bots.json uses array format | Restructure as top-level object keyed by bot name |
 | MESSAGE CONTENT intent error | Intents not enabled | Enable in Developer Portal > Bot > Privileged Intents |
+
+## WSL Setup (one-time per machine)
+
+If using WSL + tmux (recommended):
+
+1. Install Ubuntu 24.04: `wsl --install Ubuntu-24.04 --no-launch`
+2. Set as default: `wsl --set-default Ubuntu-24.04`
+3. Create user, install tools (see launch.sh header for full commands)
+4. Run `claude login` inside WSL (browser auth flow, separate from Windows)
+5. Create `~/.claude/channels/discord/access.json` with your channel IDs
+
+The WSL distro has its own filesystem and credentials -- Claude auth, access.json, and bun must all be set up independently from Windows.
 
 ## Checklist (copy for each new server)
 
@@ -170,7 +192,7 @@ The launcher:
 - [ ] Hub channel ID copied (numeric snowflake)
 - [ ] bots.json created with correct schema (object, not array)
 - [ ] Each bot entry has explicit `channelId` set to hub channel
-- [ ] access.json updated with new hub channel
+- [ ] access.json updated with new hub channel (both Windows AND WSL if using tmux)
 - [ ] System prompts written with correct channel IDs
 - [ ] MCP config exists in workDir (auto-generated or manual)
 - [ ] Test message sent and bot responded

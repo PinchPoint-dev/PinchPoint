@@ -18,16 +18,22 @@
 #
 # Each bot opens as a named tmux window in the "PinchCord" session.
 #
-# WSL setup (one-time):
-#   sudo apt install -y jq unzip build-essential libevent-dev libncurses-dev bison
-#   curl -fsSL https://bun.sh/install | bash        # native bun (not Windows)
-#   npm install -g @anthropic-ai/claude-code         # or: sudo npm install -g ...
-#   claude login                                     # authenticate once
-#   # Build tmux 3.5 from source (Ubuntu 20.04 ships 3.0a which lacks passthrough):
-#   cd /tmp && curl -L https://github.com/tmux/tmux/releases/download/3.5/tmux-3.5.tar.gz | tar xz && cd tmux-3.5 && ./configure && make && sudo make install
-#   # Create access.json for your channels:
-#   mkdir -p ~/.claude/channels/discord
+# WSL setup (one-time, Ubuntu 24.04 LTS recommended):
+#   wsl --install Ubuntu-24.04                       # install distro (no PC restart)
+#   wsl --set-default Ubuntu-24.04                   # make it default
+#   sudo apt install -y tmux jq dos2unix curl unzip  # core tools (tmux 3.4 ships with 24.04)
+#   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -  # Node.js 22 LTS
+#   sudo apt install -y nodejs
+#   sudo npm install -g @anthropic-ai/claude-code    # Claude Code CLI
+#   curl -fsSL https://bun.sh/install | bash         # native bun (not Windows interop)
+#   claude login                                     # authenticate once (browser flow)
+#   mkdir -p ~/.claude/channels/discord              # create access.json dir
 #   # See docs/new-server-setup.md step 5 for the access.json format
+#
+# Note: Ubuntu 20.04 ships tmux 3.0a which lacks passthrough (no thinking spinner).
+# If stuck on 20.04, build tmux 3.5 from source:
+#   sudo apt install -y build-essential libevent-dev libncurses-dev bison
+#   cd /tmp && curl -L https://github.com/tmux/tmux/releases/download/3.5/tmux-3.5.tar.gz | tar xz && cd tmux-3.5 && ./configure && make && sudo make install
 
 set -euo pipefail
 
@@ -125,8 +131,11 @@ fi
 # Create session if it doesn't exist (detached)
 if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     tmux new-session -d -s "$SESSION_NAME" -n "Launcher"
-    # Enable passthrough so Claude's tab-title sequences reach the outer terminal
+    # Enable passthrough and title forwarding so Claude's thinking spinner
+    # reaches the outer terminal tab title (requires tmux 3.3+)
     tmux set -t "$SESSION_NAME" -g allow-passthrough on 2>/dev/null || true
+    tmux set -t "$SESSION_NAME" -g set-titles on 2>/dev/null || true
+    tmux set -t "$SESSION_NAME" -g set-titles-string "#{pane_title}" 2>/dev/null || true
     echo "Created tmux session: $SESSION_NAME"
 else
     echo "Using existing tmux session: $SESSION_NAME"
