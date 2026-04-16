@@ -50,13 +50,83 @@ Codex bots use a discord.js adapter for inbound messages and PinchCord MCP for o
 
 ### 1. Create Discord bots
 
-1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create one application per bot
-3. Under each application's "Bot" tab:
-   - Copy the bot token
-   - Enable **MESSAGE CONTENT** intent
-   - Enable **SERVER MEMBERS** intent
-4. Invite each bot to your server with permissions: Send Messages, Read Message History, Create Public Threads, Embed Links, Attach Files, Add Reactions, Use Slash Commands
+One Discord application = one bot. Repeat these steps for every bot in your fleet.
+
+**Step 1 — Create a Discord server for your project**
+
+If you don't already have one, open Discord, click the **+** icon in the server sidebar, and choose **Create My Own**.
+
+![Create a Discord server](docs/images/setup/0-create-discord-server.png)
+
+**Step 2 — Open the Developer Portal**
+
+Go to the [Discord Developer Portal](https://discord.com/developers/applications) and click **Applications** in the sidebar.
+
+![Discord Developer Portal home](docs/images/setup/1-developer-portal.png)
+
+**Step 3 — Create a new application**
+
+Click **New Application** in the top right. Each bot in your fleet needs its own application.
+
+![Applications page — New Application](docs/images/setup/2-new-application.png)
+
+**Step 4 — Name the bot**
+
+Give it a name, accept the Developer Terms of Service, and click **Create**.
+
+![Create a new app dialog](docs/images/setup/3-create-bot.png)
+
+**Step 5 — Enable privileged intents**
+
+Open the **Bot** tab. Scroll to **Privileged Gateway Intents** and toggle on all three:
+
+- Presence Intent
+- Server Members Intent
+- Message Content Intent
+
+Click **Save Changes** at the bottom. You can also upload an icon for the bot here.
+
+![Bot intents toggled on](docs/images/setup/4-bot-intents.png)
+
+**Step 6 — Copy the bot token**
+
+Still on the **Bot** tab, click **Reset Token** then **Copy**. Discord only shows the token once.
+
+Paste it into `.pinchme/cord/bots.json` under the bot's entry:
+
+```json
+{
+  "MyBot": {
+    "token": "PASTE_THE_TOKEN_HERE",
+    "workDir": ".",
+    "promptFile": ".pinchme/cord/prompts/mybot.md",
+    "model": "claude-sonnet-4-6",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
+  }
+}
+```
+
+![Copy the bot token](docs/images/setup/5-copy-token.png)
+
+> `.pinchme/cord/bots.json` is gitignored by default so tokens stay out of version control.
+
+**Step 7 — Generate the invite URL**
+
+Open the **OAuth2** tab. Under **Scopes**, check `bot`. Under **Bot Permissions**, check **Administrator** (simplest) — or pick granular permissions: Send Messages, Read Message History, Create Public Threads, Embed Links, Attach Files, Add Reactions, Use Slash Commands. Set Integration Type to **Guild Install**.
+
+Copy the generated URL at the bottom of the page.
+
+![OAuth2 URL Generator](docs/images/setup/6-oauth-scopes.png)
+
+**Step 8 — Invite the bot to your server**
+
+Paste the URL into your browser, pick your server from the dropdown, and authorize. The bot now appears in your server's member list (offline until you launch it).
+
+![Invite bot to server](docs/images/setup/7-invite-to-server.png)
+
+**Step 9 — Repeat for each bot**
+
+Go back to Applications and repeat Steps 3-8 for every bot in your fleet. Each bot gets its own application, its own token, and its own entry in `bots.json`.
 
 ### 2. Install PinchCord
 
