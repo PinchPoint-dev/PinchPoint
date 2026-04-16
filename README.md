@@ -165,7 +165,7 @@ Edit `.pinchme/cord/bots.json` with your bot tokens:
 
 > **`channelId` is required.** This is the Discord snowflake ID of your hub channel (e.g., `"1492138400008896604"`). Without it, the bot defaults to PinchPoint's channel ID, causing it to post in the wrong server. Get it by right-clicking the channel in Discord with Developer Mode enabled.
 
-Write a system prompt for each bot in `.pinchme/cord/prompts/`. See `prompts/` in this repo for 6 example templates (Bee, Beaver, Fox, Badger, Owl, Crow).
+Write a system prompt for each bot in `.pinchme/cord/prompts/`. See `prompts/` in this repo for 9 example templates covering common team roles.
 
 #### Cross-repo bots
 
@@ -441,6 +441,7 @@ PinchCord/
 │   │   └── launch-resilient.ps1     # Resilient single-bot launcher (Windows)
 │   │
 │   ├── codex/             # OpenAI Codex bot adapters
+│   │   ├── launch.sh               # Fleet launcher (Mac/Linux — tmux)
 │   │   ├── adapter-persistent.mjs   # Persistent mode (app-server WebSocket)
 │   │   ├── adapter-exec.mjs         # Exec mode (one-shot per message)
 │   │   ├── codex-output.mjs         # Output parser for exec mode
@@ -452,10 +453,13 @@ PinchCord/
 ├── prompts/               # Example bot prompt templates
 │   ├── bee.md             # Lead engineer
 │   ├── beaver.md          # General dev
+│   ├── owl.md             # QA & oversight
 │   ├── fox.md             # Researcher
 │   ├── badger.md          # Data manager
-│   ├── owl.md             # QA & oversight
-│   └── crow.md            # Team archivist
+│   ├── crow.md            # Team archivist
+│   ├── hawk.md            # Silent watcher / second opinion
+│   ├── hound.md           # Bug hunter / regression tester
+│   └── falcon.md          # Test runner / verification reporter
 │
 └── docs/                  # Reference
     ├── protocol.md        # Inter-bot communication rules
