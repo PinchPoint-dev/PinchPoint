@@ -131,15 +131,17 @@ fi
 # Create session if it doesn't exist (detached)
 if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     tmux new-session -d -s "$SESSION_NAME" -n "Launcher"
-    # Enable passthrough and title forwarding so Claude's thinking spinner
-    # reaches the outer terminal tab title (requires tmux 3.3+)
-    tmux set -t "$SESSION_NAME" -g allow-passthrough on 2>/dev/null || true
-    tmux set -t "$SESSION_NAME" -g set-titles on 2>/dev/null || true
-    tmux set -t "$SESSION_NAME" -g set-titles-string "#{pane_title}" 2>/dev/null || true
     echo "Created tmux session: $SESSION_NAME"
 else
     echo "Using existing tmux session: $SESSION_NAME"
 fi
+
+# Apply session settings on every launch (not just first create)
+tmux set -t "$SESSION_NAME" -g allow-passthrough on 2>/dev/null || true
+tmux set -t "$SESSION_NAME" -g set-titles on 2>/dev/null || true
+tmux set -t "$SESSION_NAME" -g set-titles-string "#{pane_title}" 2>/dev/null || true
+tmux set -t "$SESSION_NAME" -g mouse on 2>/dev/null || true
+tmux set -t "$SESSION_NAME" -g history-limit 10000 2>/dev/null || true
 
 echo "PinchCord Fleet Launcher"
 echo "Launching: ${BOTS[*]}"
@@ -281,15 +283,23 @@ echo "  tmux select-window -t $SESSION_NAME:Bee   # Switch to a bot"
 echo "  tmux kill-session -t $SESSION_NAME        # Stop all bots"
 echo "  tmux capture-pane -t $SESSION_NAME:Bee -p # Read a bot's terminal"
 
-# ── Auto-attach in Windows Terminal (WSL only) ──────────────────────
-if $ATTACH; then
-    if command -v wt.exe &>/dev/null && wt.exe --version &>/dev/null; then
-        echo ""
-        echo "Opening Windows Terminal tab..."
-        wt.exe -w "$SESSION_NAME" new-tab --title "${launched[0]}" wsl tmux attach -t "$SESSION_NAME"
-    else
-        echo ""
-        echo "Attaching to tmux session..."
-        tmux attach -t "$SESSION_NAME"
-    fi
+# ── Open viewer tabs in Windows Terminal (WSL) ──────────────────────
+if command -v wt.exe &>/dev/null; then
+    echo ""
+    echo "Opening viewer tabs..."
+    for bot_name in "${launched[@]}"; do
+        view_session="view-${bot_name}"
+        tmux kill-session -t "$view_session" 2>/dev/null || true
+        if tmux new-session -d -t "$SESSION_NAME" -s "$view_session" 2>/dev/null; then
+            tmux select-window -t "$view_session:$bot_name" 2>/dev/null || true
+            if wt.exe -w 0 new-tab --title "$bot_name" wsl.exe tmux attach -t "$view_session" 2>/dev/null; then
+                echo "  $bot_name viewer tab opened"
+            else
+                echo "  WARNING: Failed to open viewer tab for $bot_name" >&2
+            fi
+        else
+            echo "  WARNING: Failed to create viewer session for $bot_name" >&2
+        fi
+        sleep 0.5
+    done
 fi
