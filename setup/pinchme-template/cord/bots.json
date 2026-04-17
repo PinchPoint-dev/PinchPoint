@@ -4,13 +4,15 @@
     "workDir": ".",
     "promptFile": ".pinchme/cord/prompts/mybot.md",
     "model": "claude-sonnet-4-6",
-    "effort": "high"
+    "effort": "high",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
   },
   "ExternalBot": {
     "token": "YOUR_DISCORD_BOT_TOKEN",
     "workDir": "C:/Users/you/Projects/OtherRepo",
     "promptFile": ".pinchme/cord/prompts/external.md",
     "model": "claude-sonnet-4-6",
-    "effort": "medium"
+    "effort": "medium",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
   }
 }

@@ -13,7 +13,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const BOT_NAME = process.env.CODEX_BOT_NAME || 'Viper'
 const BOT_NAME_LOWER = BOT_NAME.toLowerCase()
-const CHANNEL_ID = process.env.PINCHHUB_CHANNEL_ID || '1488108052887633970'
+const CHANNEL_ID = process.env.PINCHHUB_CHANNEL_ID || ''
 const TOKEN = process.env.DISCORD_BOT_TOKEN
 const WORK_DIR = process.env.CODEX_WORK_DIR || resolve(__dirname, '../../..')
 const CODEX_BIN = process.env.CODEX_BIN || (process.platform === 'win32' ? 'codex.cmd' : 'codex')
@@ -283,7 +283,7 @@ client.on('messageCreate', async (msg) => {
     } catch (e) {
       if (e.message === 'AUTH_EXPIRED') {
         await msg.channel.send(
-          `**${BOT_NAME} is down** — OAuth token expired. Sam needs to run \`codex login\` to re-authenticate.`
+          `**${BOT_NAME} is down** — OAuth token expired. The operator needs to run \`codex login\` to re-authenticate.`
         )
       } else {
         console.error(`[${BOT_NAME}] Error:`, e.message)

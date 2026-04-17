@@ -347,7 +347,7 @@ The exec adapter reads the system prompt from `.pinchme/cord/prompts/<botname>.m
 |----------|---------|-------------|
 | `CODEX_BOT_NAME` | `Panda` (persistent) / `Viper` (exec) | Bot display name and prompt file selector |
 | `DISCORD_BOT_TOKEN` | required | Discord bot token |
-| `PINCHHUB_CHANNEL_ID` | `1488108052887633970` | Discord channel to watch |
+| `PINCHHUB_CHANNEL_ID` | required | Discord channel to watch |
 | `CODEX_APP_SERVER_URL` | `ws://127.0.0.1:3848` | App-server WebSocket URL (persistent only) |
 | `CODEX_WORK_DIR` | repo root | Working directory for Codex |
 | `CODEX_BIN` | system codex | Path to Codex CLI binary (exec only) |

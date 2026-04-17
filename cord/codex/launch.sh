@@ -19,7 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # Defaults
-BOT_NAME="Goanna"
+BOT_NAME="MyBot"
 PORT=3848
 CHANNEL_ID=""
 TOKEN=""

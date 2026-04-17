@@ -41,7 +41,7 @@ $wshell.AppActivate("Bee-discord")
 $tabCount = ???  # wt has no command to return tab count
 ```
 
-`wt focus-tab -t $index` silently succeeds even for out-of-range indices. There is no error, no return code, no way to detect how many tabs exist. The only reliable feedback is visual confirmation from Sam.
+`wt focus-tab -t $index` silently succeeds even for out-of-range indices. There is no error, no return code, no way to detect how many tabs exist. The only reliable feedback is visual confirmation from the operator.
 
 ## Incident History (2026-04-02)
 
@@ -67,15 +67,15 @@ $tabCount = ???  # wt has no command to return tab count
 
 **Root cause:** Multiple WT windows/tab groups with similar names. `wt -w PinchCord` couldn't distinguish between groups.
 
-**Lesson:** When tabs are in a different tab group, be explicit about which window. Ask Sam to confirm the target before sending close commands.
+**Lesson:** When tabs are in a different tab group, be explicit about which window. Ask the operator to confirm the target before sending close commands.
 
 ### Incident 4: Double Bot Launch
 
-**What happened:** Sam said "ok do the same for Crow now" without addressing a specific bot. Both Owl and Bee launched Crow simultaneously.
+**What happened:** The operator said "ok do the same for Crow now" without addressing a specific bot. Both Owl and Bee launched Crow simultaneously.
 
 **Root cause:** Ambiguous instruction — no specific bot named.
 
-**Resolution:** Sam established the Bot Launch Permission rule: launches only happen when a specific bot is named.
+**Resolution:** The operator established the Bot Launch Permission rule: launches only happen when a specific bot is named.
 
 ## Troubleshooting
 
