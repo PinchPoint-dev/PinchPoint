@@ -29,7 +29,7 @@ The `.pinchme/` directory holds your bot config, prompts, and project-specific d
 
 ```bash
 # Copy the template
-cp -r .pinchpoint/setup/pinchme-template .pinchme
+cp -r .pinchpoint/cord/pinchme-template .pinchme
 ```
 
 This creates:

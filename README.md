@@ -241,6 +241,26 @@ cd .pinchpoint/cord/codex
 npm install
 ```
 
+### Quick launch (scripted)
+
+Both platforms have a launcher that creates the tmux / Windows Terminal session, starts the Codex app-server, and runs the adapter in a second pane:
+
+```bash
+# WSL / Mac / Linux
+./.pinchpoint/cord/codex/launch.sh --bot MyBot --channel YOUR_CHANNEL_ID
+```
+
+```powershell
+# Windows
+.\.pinchpoint\cord\codex\launch.ps1 -BotName MyBot -ChannelId YOUR_CHANNEL_ID
+```
+
+Tokens resolve in this order: `.pinchme/cord/bots.json` -> `.env.secrets` (as `<BOTNAME>_DISCORD_TOKEN`) -> `--token` / `-Token` flag.
+
+If you want to understand what the launcher does under the hood, or run the steps manually, continue with "Choose a mode" below.
+
+> Wherever you see `model = "gpt-5.4"` in the Codex examples, replace it with the current OpenAI model your Codex CLI is authenticated against. It's a placeholder, not a pinned version.
+
 ### Choose a mode
 
 #### Persistent mode (recommended)
@@ -385,6 +405,61 @@ Multiple Claude Code sessions can collide on `~/.claude.json`. Relaunch the affe
 **Turn starts but never completes:**
 Check that `CODEX_HOME` is set when starting the app-server. Without it, the default Codex config is used, which won't have PinchCord MCP registered.
 
+## Skills
+
+PinchCord ships Claude Code skills that give bots procedural knowledge — how to launch other bots, approve dev-channel prompts, stop a bot cleanly, and so on. Skills auto-load when the plugin is active; Claude invokes them either by context (trigger phrases in the skill's `description`) or when the user types `/<skill-name>`.
+
+| Skill | Path | Use when |
+|-------|------|----------|
+| `fleet-management` | `skills/cord/fleet-management/SKILL.md` | Launching, stopping, restarting, or approving any bot in the fleet. References `launch.sh`, `launch.ps1`, tmux, Windows Terminal tabs, and the `-NoExit`/Ctrl+Shift+W close flow. Includes an incident-driven `references/gotchas.md`. |
+
+### How skills work
+
+1. Each skill is a markdown file with YAML frontmatter (`name`, `description`, optional `version`). The `description` field is what Claude matches against your request to decide when to auto-invoke.
+2. Claude Code scans `skills/**/SKILL.md` when the plugin loads and registers each as a callable skill.
+3. A skill can reference additional files (e.g., `references/gotchas.md`) to keep the main skill body short. Claude reads them on demand.
+
+### Adding your own skills
+
+Drop a new skill file under `skills/` in this repo (or in your project's `.pinchme/cord/skills/` for project-specific skills). Structure:
+
+```
+skills/
+└── <product>/
+    └── <skill-name>/
+        ├── SKILL.md              # Required — frontmatter + instructions
+        └── references/           # Optional — long-form docs the skill points to
+            └── anything.md
+```
+
+SKILL.md frontmatter:
+
+```yaml
+---
+name: Your Skill Name
+description: >-
+  Triggered when the user asks to "do X", "run Y", or similar phrases.
+  Pack this field with concrete trigger words — Claude matches against it.
+version: 0.1.0
+---
+
+# Your Skill Name
+
+Instructions for Claude on how to perform this task...
+```
+
+Register the skill in `.claude-plugin/plugin.json` so it ships with the plugin:
+
+```json
+{
+  "skills": [
+    { "name": "your-skill-name", "path": "skills/<product>/<skill-name>/SKILL.md" }
+  ]
+}
+```
+
+Skills for Point (knowledge API) and Pinch (scheduling) are not yet shipped — placeholders at `skills/point/` and `skills/pinch/` will be filled out as those products mature.
+
 ## Modules
 
 PinchCord is modular — each feature is an optional file in `modules/`. Remove a module to disable that feature. With no modules, PinchCord behaves identically to the official Discord plugin.
@@ -435,13 +510,14 @@ PinchCord/
 │
 ├── cord/                  # Bot fleet management
 │   ├── claude/            # Claude Code bot launchers
-│   │   ├── launch.sh          # Fleet launcher (Mac/Linux — tmux)
-│   │   ├── launch.ps1         # Fleet launcher (Windows — Windows Terminal)
+│   │   ├── launch.sh                # Fleet launcher (Mac/Linux — tmux)
+│   │   ├── launch.ps1               # Fleet launcher (Windows — Windows Terminal)
 │   │   ├── launch-resilient.sh      # Resilient single-bot launcher (Mac/Linux)
 │   │   └── launch-resilient.ps1     # Resilient single-bot launcher (Windows)
 │   │
 │   ├── codex/             # OpenAI Codex bot adapters
-│   │   ├── launch.sh               # Fleet launcher (Mac/Linux — tmux)
+│   │   ├── launch.sh                # Codex bot launcher (WSL / Mac / Linux — tmux)
+│   │   ├── launch.ps1               # Codex bot launcher (Windows — Windows Terminal)
 │   │   ├── adapter-persistent.mjs   # Persistent mode (app-server WebSocket)
 │   │   ├── adapter-exec.mjs         # Exec mode (one-shot per message)
 │   │   ├── codex-output.mjs         # Output parser for exec mode
@@ -449,8 +525,9 @@ PinchCord/
 │   │
 │   ├── bots.example.json  # Template config
 │   └── pinchme-template/  # Scaffold for .pinchme/ directory
+│       └── SETUP.md       # Step-by-step setup guide (human + LLM)
 │
-├── prompts/               # Example bot prompt templates
+├── prompts/               # Example bot prompt templates (9 archetypes)
 │   ├── bee.md             # Lead engineer
 │   ├── beaver.md          # General dev
 │   ├── owl.md             # QA & oversight
@@ -461,10 +538,14 @@ PinchCord/
 │   ├── hound.md           # Bug hunter / regression tester
 │   └── falcon.md          # Test runner / verification reporter
 │
+├── assets/                # Bot avatar images
+│
 └── docs/                  # Reference
     ├── protocol.md        # Inter-bot communication rules
     ├── changelog.md       # Version history
-    └── debugging.md       # Troubleshooting guide
+    ├── debugging.md       # Troubleshooting guide
+    ├── new-server-setup.md  # Add bots to a new project / server
+    └── images/setup/      # Screenshots used by the README setup walkthrough
 ```
 
 Your bots and config live in a `.pinchme/` directory (project-local or global):

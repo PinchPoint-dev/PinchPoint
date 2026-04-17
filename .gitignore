@@ -1,4 +1,20 @@
+# Dependencies
 node_modules/
+
+# Logs
 *.log
+logs/
+
+# Secrets — bot tokens, API keys, credentials
 .env
 .env.*
+*.secrets
+bots.json
+
+# User config (PinchMe convention)
+.pinchme/
+
+# Build / editor artifacts
+.DS_Store
+.idea/
+.vscode/

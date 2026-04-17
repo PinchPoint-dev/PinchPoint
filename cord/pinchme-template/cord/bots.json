@@ -6,5 +6,13 @@
     "model": "claude-sonnet-4-6",
     "effort": "high",
     "channelId": "YOUR_HUB_CHANNEL_ID"
+  },
+  "ExternalBot": {
+    "token": "YOUR_DISCORD_BOT_TOKEN",
+    "workDir": "/absolute/path/to/OtherRepo",
+    "promptFile": ".pinchme/cord/prompts/external.md",
+    "model": "claude-sonnet-4-6",
+    "effort": "medium",
+    "channelId": "YOUR_HUB_CHANNEL_ID"
   }
 }

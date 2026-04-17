@@ -1,8 +1,24 @@
 {
   "name": "pinchcord",
-  "version": "0.1.0",
-  "description": "Orchestrate a team of Claude Code agents through Discord",
+  "version": "0.2.0",
+  "description": "Orchestrate a team of Claude Code and Codex agents through Discord",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/PinchPoint-dev/PinchPoint",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PinchPoint-dev/PinchPoint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PinchPoint-dev/PinchPoint/issues"
+  },
+  "keywords": [
+    "discord",
+    "mcp",
+    "claude-code",
+    "codex",
+    "bot-fleet",
+    "agent-orchestration"
+  ],
   "type": "module",
   "bin": "./server.ts",
   "scripts": {
