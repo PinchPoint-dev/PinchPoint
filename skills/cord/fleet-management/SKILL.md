@@ -136,9 +136,9 @@ tmux kill-session -t PinchCord              # Stop all bots
 
 ## Critical Rules
 
-1. **Bot Launch Permission:** Only launch a bot when Sam explicitly names a specific bot to do it. "Launch Crow" with no name addressed = no bot acts. "Owl launch Crow" = only Owl acts.
+1. **Bot Launch Permission:** Only launch a bot when the operator explicitly names a specific bot to do it. "Launch Crow" with no name addressed = no bot acts. "Owl launch Crow" = only Owl acts.
 2. **Never kill your own process.** Exclude your own PID when killing processes by pattern.
-3. **Ask Sam to confirm** after close/launch operations — visual verification is the only reliable feedback.
+3. **Ask the operator to confirm** after close/launch operations — visual verification is the only reliable feedback.
 
 ## Platform-Specific Gotchas
 

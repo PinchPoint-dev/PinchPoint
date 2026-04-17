@@ -21,7 +21,7 @@ param(
     [string]$Token = "",
     [int]$Port = 3848,
     [string]$Window = "PinchCord",
-    [string]$ChannelId = "1488108052887633970"
+    [string]$ChannelId = ""
 )
 
 $BotNameLower = $BotName.ToLower()
@@ -77,7 +77,9 @@ $launchScript = @"
 Write-Host "=== $BotName on PinchCord ===" -ForegroundColor Green
 Write-Host "Starting app-server on port $Port..." -ForegroundColor DarkGray
 
-Start-Process -NoNewWindow -FilePath "C:\Users\samcd\AppData\Roaming\npm\codex.cmd" -ArgumentList "app-server","--listen","ws://127.0.0.1:$Port"
+`$codexPath = (Get-Command codex -ErrorAction SilentlyContinue)?.Source
+if (-not `$codexPath) { `$codexPath = "$env:APPDATA\npm\codex.cmd" }
+Start-Process -NoNewWindow -FilePath `$codexPath -ArgumentList "app-server","--listen","ws://127.0.0.1:$Port"
 Start-Sleep 8
 
 `$host.UI.RawUI.WindowTitle = "$BotName"

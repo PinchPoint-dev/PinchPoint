@@ -1,10 +1,10 @@
 # New Server Setup Guide
 
-How to set up PinchCord bots on a new Discord server (e.g., adding bots to a new project like Novolaw). This covers the full chain of config that must be correct -- missing any step causes silent failures.
+How to set up PinchCord bots on a new Discord server (e.g., adding bots to a new project). This covers the full chain of config that must be correct -- missing any step causes silent failures.
 
 ## Prerequisites
 
-- A Discord server with a hub channel (e.g., #novohub)
+- A Discord server with a hub channel (e.g., #hub)
 - Discord bot applications created in the Developer Portal
 - PinchCord cloned into the new project repo (`.pinchpoint/`)
 - `.pinchme/cord/` directory with prompts written
@@ -13,10 +13,10 @@ How to set up PinchCord bots on a new Discord server (e.g., adding bots to a new
 
 ### 1. Create Discord Bot Applications
 
-For each bot (e.g., Cockatoo, Platypus):
+For each bot (e.g., QA bot, Engineer bot):
 
 1. Go to https://discord.com/developers/applications
-2. Click "New Application", name it (e.g., "Cockatoo")
+2. Click "New Application", name it (e.g., "QA")
 3. Go to Bot tab, click "Reset Token", copy the token
 4. Enable these Privileged Gateway Intents:
    - MESSAGE CONTENT INTENT (required -- bots can't read messages without it)
@@ -40,7 +40,7 @@ For each bot:
 ### 3. Get the Hub Channel ID
 
 1. Enable Developer Mode in Discord (User Settings > Advanced > Developer Mode)
-2. Right-click the hub channel (e.g., #novohub) > Copy Channel ID
+2. Right-click the hub channel (e.g., #hub) > Copy Channel ID
 3. Save this -- you need it for bots.json and access.json
 
 ### 4. Configure bots.json
@@ -49,18 +49,18 @@ Create `.pinchme/cord/bots.json` in your project. The schema MUST be a top-level
 
 ```json
 {
-  "Cockatoo": {
+  "QA": {
     "token": "YOUR_BOT_TOKEN_HERE",
     "workDir": "C:/Users/you/Projects/Git-Repos/YourProject",
-    "promptFile": ".pinchme/cord/prompts/cockatoo.md",
+    "promptFile": ".pinchme/cord/prompts/qa.md",
     "model": "claude-sonnet-4-6",
     "effort": "high",
     "channelId": "YOUR_HUB_CHANNEL_ID"
   },
-  "Platypus": {
+  "Engineer": {
     "token": "YOUR_BOT_TOKEN_HERE",
     "workDir": "C:/Users/you/Projects/Git-Repos/YourProject",
-    "promptFile": ".pinchme/cord/prompts/platypus.md",
+    "promptFile": ".pinchme/cord/prompts/engineer.md",
     "model": "claude-sonnet-4-6",
     "effort": "high",
     "channelId": "YOUR_HUB_CHANNEL_ID"
@@ -78,7 +78,7 @@ Create `.pinchme/cord/bots.json` in your project. The schema MUST be a top-level
 
 PinchCord controls which Discord channels bots can see via `~/.claude/channels/discord/access.json`. Your new hub channel must be listed in the `groups` object.
 
-If this file already exists (e.g., from PinchPoint), add your new channel ID to the existing `groups` object. Do not overwrite existing entries:
+If this file already exists (e.g., from another project), add your new channel ID to the existing `groups` object. Do not overwrite existing entries:
 
 ```json
 {
@@ -106,13 +106,13 @@ If the file doesn't exist yet, PinchCord creates it on first launch. The `/disco
 
 ### 6. Write System Prompts
 
-Each bot needs a prompt file at the path specified in `promptFile` (e.g., `.pinchme/cord/prompts/cockatoo.md`).
+Each bot needs a prompt file at the path specified in `promptFile` (e.g., `.pinchme/cord/prompts/qa.md`).
 
 The prompt must include:
 - The bot's identity and role
 - The hub channel name and numeric ID (for MCP tool calls)
 - The team roster (other bots, their roles)
-- Sam's authority rule
+- The operator's authority rule
 - Push gate / deploy workflow (if applicable)
 
 ### 7. Create MCP Config
@@ -142,7 +142,7 @@ If it doesn't exist, create it:
 ```bash
 # From WSL (or via: wsl bash -c '...')
 cd /mnt/c/Users/you/Projects/Git-Repos/YourProject
-bash .pinchpoint/cord/claude/launch.sh --attach Cockatoo
+bash .pinchpoint/cord/claude/launch.sh --attach QA
 ```
 
 The launcher creates a tmux session, adds the bot as a named window, auto-approves prompts via `tmux send-keys` (no foreground focus required), and optionally opens a Windows Terminal tab attached to the session.
@@ -150,7 +150,7 @@ The launcher creates a tmux session, adds the bot as a named window, auto-approv
 **Option B: Windows Terminal** -- visual tabs with SendKeys:
 
 ```powershell
-.\.pinchpoint\cord\claude\launch.ps1 Cockatoo
+.\.pinchpoint\cord\claude\launch.ps1 QA
 ```
 
 The launcher reads bots.json, opens a new WT tab, starts Claude Code, and auto-approves via SendKeys (~12s delay). Requires foreground focus during approval.
@@ -168,7 +168,7 @@ The launcher reads bots.json, opens a new WT tab, starts Claude Code, and auto-a
 | Tab title shows "Claude Code" not bot name | cmd.exe title override | Known issue -- cosmetic only, doesn't affect function |
 | No thinking spinner in tmux tab | `set-titles` not enabled | launch.sh sets this automatically; verify tmux 3.3+ |
 | `/compact` becomes `C:/Program Files/Git/compact` | MSYS2 path mangling | Run tmux commands from WSL, not Git Bash; or prefix with `MSYS_NO_PATHCONV=1` |
-| Bot responds in PinchHub instead of your hub | channelId defaulting to PinchPoint's | Set explicit channelId in bots.json |
+| Bot responds in wrong channel instead of your hub | channelId defaulting to PinchPoint's | Set explicit channelId in bots.json |
 | launch.ps1 can't find bot config | bots.json uses array format | Restructure as top-level object keyed by bot name |
 | MESSAGE CONTENT intent error | Intents not enabled | Enable in Developer Portal > Bot > Privileged Intents |
 

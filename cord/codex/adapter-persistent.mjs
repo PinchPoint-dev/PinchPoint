@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const BOT_NAME = process.env.CODEX_BOT_NAME || 'Panda'
 const BOT_NAME_LOWER = BOT_NAME.toLowerCase()
-const CHANNEL_ID = process.env.PINCHHUB_CHANNEL_ID || '1488108052887633970'
+const CHANNEL_ID = process.env.PINCHHUB_CHANNEL_ID || ''
 const TOKEN = process.env.DISCORD_BOT_TOKEN
 const WORK_DIR = process.env.CODEX_WORK_DIR || resolve(__dirname, '../../..')
 const APP_SERVER_URL = process.env.CODEX_APP_SERVER_URL || 'ws://127.0.0.1:3848'

@@ -1,7 +1,7 @@
 {
-  "name": "pinchpoint",
-  "version": "0.1.0",
-  "description": "PinchPoint suite — Discord bot fleet (PinchCord), Point API, and Pinch deployment tools",
+  "name": "pinchcord",
+  "version": "0.2.0",
+  "description": "Orchestrate a team of Claude Code and Codex agents through Discord",
   "skills": [
     {
       "name": "fleet-management",
