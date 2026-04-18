@@ -6,19 +6,19 @@
 # merge; falls back to a merge-commit if the branch has diverged.
 #
 # Usage:
-#     fleet/merge-bot.sh <botname>
+#     cord/tools/merge-bot.sh <botname>
 #
 # Example:
-#     fleet/merge-bot.sh bee
+#     cord/tools/merge-bot.sh bee
 #
 # Preconditions:
 #   - bot/<botname> has been pushed to origin
 #   - main tree is clean (no uncommitted changes)
-#   - Reviewer has reviewed `git diff main...bot/<botname>`
+#   - Reviewer has reviewed `git diff main...origin/bot/<botname>`
 #
 # Env:
 #   MAIN_TREE   Path to the main-branch worktree. Defaults to the
-#               script's grandparent dir (fleet/ lives one level deep).
+#               script's repo root (two levels up from cord/tools/).
 
 set -euo pipefail
 
@@ -30,10 +30,11 @@ fi
 
 BOT="$1"
 BRANCH="bot/${BOT}"
+REMOTE_BRANCH="origin/${BRANCH}"
 
 if [ -z "${MAIN_TREE:-}" ]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  MAIN_TREE="$(cd "${SCRIPT_DIR}/.." && pwd)"
+  MAIN_TREE="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 fi
 
 if [ ! -d "$MAIN_TREE" ]; then
@@ -59,21 +60,21 @@ fi
 echo "Fetching origin…"
 git fetch origin
 
-if ! git show-ref --verify --quiet "refs/heads/${BRANCH}"; then
-  echo "Branch '$BRANCH' not found locally." >&2
-  echo "Check out the bot's branch or fetch from origin first." >&2
+if ! git show-ref --verify --quiet "refs/remotes/${REMOTE_BRANCH}"; then
+  echo "Remote branch '${REMOTE_BRANCH}' not found after fetch." >&2
+  echo "Make sure the bot has pushed ${BRANCH} to origin." >&2
   exit 1
 fi
 
 echo "Ensuring main is current with origin/main…"
 git merge --ff-only origin/main
 
-echo "Attempting fast-forward merge of ${BRANCH}…"
-if git merge --ff-only "$BRANCH"; then
-  echo "  Fast-forward merged ${BRANCH} into main."
+echo "Attempting fast-forward merge of ${REMOTE_BRANCH}…"
+if git merge --ff-only "$REMOTE_BRANCH"; then
+  echo "  Fast-forward merged ${REMOTE_BRANCH} into main."
 else
   echo "  Fast-forward not possible; performing merge-commit."
-  git merge "$BRANCH" -m "merge: ${BRANCH} → main"
+  git merge "$REMOTE_BRANCH" -m "merge: ${BRANCH} → main"
   echo "  Merge-commit created."
 fi
 

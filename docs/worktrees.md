@@ -106,7 +106,7 @@ See [`cord/tools/merge-bot.sh`](../cord/tools/merge-bot.sh) for a reference impl
 
 ## Review-only bots
 
-If a bot's role is review or audit (it never commits), skip the worktree. It reads from the main tree, uses `git fetch` to pull other bots' pushed branches, and reviews via `git diff main...bot/<name>`. Adding a worktree for a bot that doesn't edit code is pure overhead.
+If a bot's role is review or audit (it never commits), skip the worktree. It reads from the main tree, uses `git fetch` to pull other bots' pushed branches, and reviews via `git diff main...origin/bot/<name>` (remote ref — the reviewer won't have a local branch). Adding a worktree for a bot that doesn't edit code is pure overhead.
 
 ## Migration from a shared-tree fleet
 
