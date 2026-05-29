@@ -160,7 +160,7 @@ for bot_name in "${BOTS[@]}"; do
     token=$(jq -r ".[\"$bot_name\"].token // empty" "$CONFIG_PATH")
     work_dir=$(jq -r ".[\"$bot_name\"].workDir // empty" "$CONFIG_PATH")
     prompt_file=$(jq -r ".[\"$bot_name\"].promptFile // empty" "$CONFIG_PATH")
-    model=$(jq -r ".[\"$bot_name\"].model // \"claude-sonnet-4-6\"" "$CONFIG_PATH")
+    model=$(jq -r ".[\"$bot_name\"].model // empty" "$CONFIG_PATH")
     effort=$(jq -r ".[\"$bot_name\"].effort // \"high\"" "$CONFIG_PATH")
     extra_args=$(jq -r ".[\"$bot_name\"].extraArgs // empty" "$CONFIG_PATH")
     channel_id=$(jq -r ".[\"$bot_name\"].channelId // empty" "$CONFIG_PATH")
@@ -204,6 +204,13 @@ MCPEOF
         fi
     fi
 
+    # Only pass --model when bots.json specifies one; otherwise inherit the
+    # user's global Claude default so new model releases pick up automatically.
+    model_flag=""
+    if [[ -n "$model" ]]; then
+        model_flag="--model '$model'"
+    fi
+
     # Write a temp launch script (avoids token leaking into shell history)
     bot_script="$(mktemp /tmp/pinchcord-bot-XXXXXX.sh)"
     chmod 700 "$bot_script"
@@ -216,7 +223,7 @@ export PINCHHUB_CHANNEL_ID='$channel_id'
 export PINCHCORD_HEARTBEAT=true
 cd '$work_dir'
 echo '=== $bot_name on PinchCord ==='
-claude --dangerously-load-development-channels server:pinchcord $mcp_flag --append-system-prompt-file '$prompt_file' --model '$model' --effort $effort --name $session_name $extra_args
+claude --dangerously-load-development-channels server:pinchcord $mcp_flag --append-system-prompt-file '$prompt_file' $model_flag --effort $effort --name $session_name $extra_args
 BOTEOF
 
     # Create a new tmux window running the script (token stays out of history)

@@ -123,7 +123,10 @@ function Write-BotLauncher {
     $token = $Config.token
     $workDir = $Config.workDir
     $promptFile = $Config.promptFile
-    $model = if ($Config.model) { $Config.model } else { "claude-sonnet-4-6" }
+    # Only pass --model when bots.json specifies one; otherwise inherit the
+    # user's global Claude default so new model releases pick up automatically.
+    # Mirrors launch.sh.
+    $modelFlag = if ($Config.model) { "--model `"$($Config.model)`"" } else { "" }
     $effort = if ($Config.effort) { $Config.effort } else { "high" }
     $extraArgs = if ($Config.extraArgs) { $Config.extraArgs } else { "" }
     $sessionName = "$BotName"
@@ -161,7 +164,7 @@ function Write-BotLauncher {
 `$env:PINCHCORD_HEARTBEAT = "true"
 Set-Location "$workDir"
 Write-Host "=== $BotName on PinchCord ===" -ForegroundColor Green
-claude --dangerously-load-development-channels server:pinchcord $mcpFlag --append-system-prompt-file "$promptFile" --model "$model" --effort $effort --name $sessionName $extraArgs
+claude --dangerously-load-development-channels server:pinchcord $mcpFlag --append-system-prompt-file "$promptFile" $modelFlag --effort $effort --name $sessionName $extraArgs
 "@
     $scriptPath = "$env:TEMP\pinchcord-$($BotName.ToLower()).ps1"
     Set-Content -Path $scriptPath -Value $script

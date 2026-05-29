@@ -99,6 +99,10 @@ tmux set -t "$BOT_NAME" -g mouse on 2>/dev/null || true
 tmux set -t "$BOT_NAME" -g history-limit 10000 2>/dev/null || true
 
 # Set env vars and start app-server
+# Ensure native bun is on PATH so pinchcord MCP (command="bun") resolves when codex
+# lazily spawns it on first tool call. Without this the MCP silently never starts
+# and reply/react tools are unavailable to the bot.
+tmux send-keys -t "$BOT_NAME:app-server" "[[ -d \"\$HOME/.bun/bin\" ]] && export PATH=\"\$HOME/.bun/bin:\$PATH\"" Enter
 tmux send-keys -t "$BOT_NAME:app-server" "export CODEX_HOME='$CODEX_HOME'" Enter
 tmux send-keys -t "$BOT_NAME:app-server" "export DISCORD_BOT_TOKEN='$TOKEN'" Enter
 tmux send-keys -t "$BOT_NAME:app-server" "export DISCORD_ACCESS_MODE='static'" Enter
