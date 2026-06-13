@@ -477,6 +477,31 @@ PinchCord is modular — each feature is an optional file in `modules/`. Remove 
 | `heartbeat` | Dashboard status writer, restart markers |
 | `commands` | Slash commands for task dispatch and fleet status |
 
+## Lean mode: CLI + slim MCP (opt-in)
+
+Every MCP tool schema sits in every bot's context **every turn** — the full
+server's tool surface costs ~4.8k tokens per bot per turn. [`cli/`](cli/)
+ships an opt-in alternative that eliminates that tax:
+
+- **`cli/server.ts`** — a slim, inbound-only MCP: Discord gateway +
+  `claude/channel` wake-from-idle, **zero tools registered**.
+- **`cli/cli.ts` (`pinchcord`)** — every outbound action (send, react, edit,
+  fetch, download, threads, delete) as a shell command bots call via Bash.
+  Bots learn the surface from a ~550-token paragraph in the MCP instructions —
+  the "MCP tools" category disappears from `/context` entirely.
+
+It also includes fleet lifecycle commands (`setup` / `doctor` / `launch` /
+`stop` / `restart` / `ps`): one tmux session per bot with a visible terminal
+tab each, verified startup (auto-approves the dev-channels dialog when it
+renders, reports ready only when channels are live), per-bot delivery
+watermarks (no backlog replay after restarts), and duplicate-launch guards.
+
+The full-tool `server.ts` at the repo root remains the default. Lean mode
+requires Bun and Claude Code's experimental channels feature
+(`--dangerously-load-development-channels`, a research preview — the launcher
+MUST pass `--strict-mcp-config`, which `pinchcord launch` bakes in). See
+[`cli/README.md`](cli/README.md) for the full guide and platform matrix.
+
 ## Project structure
 
 ```
