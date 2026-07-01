@@ -163,7 +163,7 @@ Edit `.pinchme/cord/bots.json` with your bot tokens:
 }
 ```
 
-> **`channelId` is required.** This is the Discord snowflake ID of your hub channel (e.g., `"1492138400008896604"`). Without it, the bot defaults to PinchPoint's channel ID, causing it to post in the wrong server. Get it by right-clicking the channel in Discord with Developer Mode enabled.
+> **`channelId` is required.** This is the Discord snowflake ID of your hub channel (e.g., `"1492138400008896604"`). Without it, the bot falls back to the `PINCHHUB_CHANNEL_ID` environment variable (there is no hardcoded default) — if that is unset too, hub features are disabled. Get it by right-clicking the channel in Discord with Developer Mode enabled.
 
 Write a system prompt for each bot in `.pinchme/cord/prompts/`. See `prompts/` in this repo for 9 example templates covering common team roles.
 
@@ -476,6 +476,31 @@ PinchCord is modular — each feature is an optional file in `modules/`. Remove 
 | `formats` | Auto-render structured markdown as Discord embeds |
 | `heartbeat` | Dashboard status writer, restart markers |
 | `commands` | Slash commands for task dispatch and fleet status |
+
+## Lean mode: CLI + slim MCP (opt-in)
+
+Every MCP tool schema sits in every bot's context **every turn** — the full
+server's tool surface costs ~4.8k tokens per bot per turn. [`cli/`](cli/)
+ships an opt-in alternative that eliminates that tax:
+
+- **`cli/server.ts`** — a slim, inbound-only MCP: Discord gateway +
+  `claude/channel` wake-from-idle, **zero tools registered**.
+- **`cli/cli.ts` (`pinchcord`)** — every outbound action (send, react, edit,
+  fetch, download, threads, delete) as a shell command bots call via Bash.
+  Bots learn the surface from a ~550-token paragraph in the MCP instructions —
+  the "MCP tools" category disappears from `/context` entirely.
+
+It also includes fleet lifecycle commands (`setup` / `doctor` / `launch` /
+`stop` / `restart` / `ps`): one tmux session per bot with a visible terminal
+tab each, verified startup (auto-approves the dev-channels dialog when it
+renders, reports ready only when channels are live), per-bot delivery
+watermarks (no backlog replay after restarts), and duplicate-launch guards.
+
+The full-tool `server.ts` at the repo root remains the default. Lean mode
+requires Bun and Claude Code's experimental channels feature
+(`--dangerously-load-development-channels`, a research preview — the launcher
+MUST pass `--strict-mcp-config`, which `pinchcord launch` bakes in). See
+[`cli/README.md`](cli/README.md) for the full guide and platform matrix.
 
 ## Project structure
 

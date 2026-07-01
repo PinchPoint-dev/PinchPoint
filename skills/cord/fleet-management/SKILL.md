@@ -7,12 +7,56 @@ description: >-
   operations for the PinchCord bot fleet. Also triggered by references to
   "tmux session", "wt focus-tab", "SendKeys", "PinchCord window/session",
   or bot tab/pane management.
-version: 0.2.0
+version: 0.3.0
 ---
 
 # PinchCord Fleet Management
 
 Manage the PinchCord bot fleet. This covers launching bots, auto-approving dev channel prompts, stopping bots, and restarting bots.
+
+## FIRST: Which launch system is this fleet on?
+
+Two launch systems exist and their tmux models are **incompatible** — running
+legacy commands against a lean-mode fleet (or vice versa) hits nothing, and
+"fixing" that by improvising is how duplicate bots get launched. Check before
+any operation:
+
+```bash
+tmux ls
+```
+
+- Sessions named **`Pinchcord-<Bot>`** (one per bot) → **lean mode**. Use the
+  `pinchcord` CLI section below. Do NOT use `kill-window -t PinchCord:<Bot>`.
+- A single session named **`PinchCord`** (bots as windows) → **legacy mode**.
+  Use the legacy sections below. The `pinchcord stop` command won't find these.
+- No tmux at all but WT tabs exist → could be either; check the tab titles
+  (`<Bot>` = lean `--mode wt`, `<Bot>-discord` = legacy `launch.ps1`).
+
+## Lean mode (pinchcord CLI)
+
+If the repo ships the `pinchcord` CLI (`cli/` in this repo), prefer it — it
+replaces the manual incantations below with verified lifecycle commands:
+
+```bash
+pinchcord launch <Bot>       # launch (default: WSL/tmux; --mode wt|mac)
+pinchcord launch             # launch every bot in bots.json
+pinchcord stop <Bot>         # stop one bot;  pinchcord stop --all
+pinchcord restart <Bot>      # stop + relaunch
+pinchcord ps                 # fleet status (DEAD = claude exited, pane kept)
+pinchcord doctor --bot <Bot> # config / state-dir / MCP diagnosis
+```
+
+What's built in (no manual steps needed):
+- **Auto-approve**: launch polls each pane and answers the dev-channels trust
+  dialog when it actually renders — no SendKeys, no sleep-and-hope.
+- **`--strict-mcp-config`** is baked in so ONLY the slim MCP loads (never both
+  servers).
+- **One tmux session per bot** (`Pinchcord-<Bot>`), each with its own terminal
+  tab. Closing a tab never kills the bot.
+- **No duplicates**: launching a running bot is a no-op with a `restart` hint.
+
+Everything below this line documents the **legacy** full-tool-MCP launchers,
+which remain the default until a fleet opts into lean mode.
 
 ## Prerequisites
 

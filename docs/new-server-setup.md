@@ -70,7 +70,7 @@ Create `.pinchme/cord/bots.json` in your project. The schema MUST be a top-level
 
 **Common mistakes:**
 - Using `{ "bots": [ ... ] }` array format -- launch.ps1 expects top-level object keyed by name
-- Missing `channelId` -- without it, the bot falls back to PinchHub's channel ID from PinchPoint, not your server's hub
+- Missing `channelId` -- without it, the bot falls back to the `PINCHHUB_CHANNEL_ID` environment variable (there is no hardcoded default), which is probably not your server's hub
 - Using the channel name instead of the numeric ID -- Discord MCP tools require snowflake IDs
 - Relative `workDir` -- must be absolute path
 
