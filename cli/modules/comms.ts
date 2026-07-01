@@ -118,7 +118,10 @@ export async function fetchStartupMessages(
 // Realtime queue
 // ---------------------------------------------------------------------------
 
-type QueuedHandler = (msg: Message) => Promise<void>
+// Result is ignored here — handleInbound returns a handled/failed boolean for
+// the startup catch-up loop, but queued realtime messages have no watermark
+// batch to hold back, so drain just logs failures via the handler itself.
+type QueuedHandler = (msg: Message) => Promise<unknown>
 
 let queue: Message[] = []
 let draining = false
@@ -136,7 +139,7 @@ export async function finishCatchUp(handler: QueuedHandler): Promise<void> {
     // Messages arriving while draining=true get pushed to queue by
     // enqueueIfNeeded(), so we must drain until empty.
     // Bounded to 5 iterations to prevent infinite spin if messages arrive
-    // faster than they're processed (queue is also capped at 100 in enqueueIfNeeded).
+    // faster than they're processed; leftovers are handed off below.
     let iterations = 0
     while (queue.length > 0 && iterations < 5) {
       iterations++
@@ -149,11 +152,23 @@ export async function finishCatchUp(handler: QueuedHandler): Promise<void> {
         }
       }
     }
-    if (queue.length > 0) {
-      process.stderr.write(`pinchcord comms: drain loop hit iteration cap with ${queue.length} messages remaining\n`)
-    }
   } finally {
     draining = false
+  }
+  // Iteration cap hit with messages still queued: hand off the leftovers
+  // instead of stranding them (nothing ever read the queue again). With
+  // draining=false and catchUpComplete=true, new arrivals now bypass the
+  // queue, so this splice is the final word.
+  const leftovers = queue.splice(0)
+  if (leftovers.length > 0) {
+    process.stderr.write(`pinchcord comms: drain hit iteration cap — delivering ${leftovers.length} leftover message(s) directly\n`)
+    for (const msg of leftovers) {
+      try {
+        await handler(msg)
+      } catch (err) {
+        process.stderr.write(`pinchcord comms: queued message failed: ${err}\n`)
+      }
+    }
   }
 }
 
@@ -163,8 +178,15 @@ export async function finishCatchUp(handler: QueuedHandler): Promise<void> {
  */
 export function enqueueIfNeeded(msg: Message): boolean {
   if (catchUpComplete && !draining) return false
-  if (queue.length < 100) {
-    queue.push(msg)
+  // Unbounded on purpose: the old 100-cap silently DROPPED overflow (returned
+  // true without pushing), and processing overflow immediately instead would
+  // advance the delivery watermark past still-queued older messages, turning
+  // them into "duplicates". The queue only lives for the catch-up window
+  // (seconds), so growth is bounded by inbound rate in practice — warn if it
+  // ever looks pathological.
+  queue.push(msg)
+  if (queue.length % 1000 === 0) {
+    process.stderr.write(`pinchcord comms: realtime queue at ${queue.length} — catch-up may be stuck\n`)
   }
   return true
 }

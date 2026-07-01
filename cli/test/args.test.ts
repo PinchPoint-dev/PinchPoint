@@ -32,6 +32,21 @@ test('boolean flag with no value', () => {
   expect(r.flags.json).toBe(true)
 })
 
+test('value-taking flag with missing value throws (not silently true)', () => {
+  expect(() => parseArgs(['send', 'hi', '--reply-to'])).toThrow('--reply-to requires a value')
+  expect(() => parseArgs(['send', 'hi', '--reply-to', '--file', 'a.png'])).toThrow('--reply-to requires a value')
+  expect(() => parseArgs(['fetch', '--limit'])).toThrow('--limit requires a value')
+  expect(() => parseArgs(['download', '123', '--out'])).toThrow('--out requires a value')
+})
+
+test('boolean flags are unaffected by the value-flag guard', () => {
+  const r = parseArgs(['fetch', '--json', '--full'])
+  expect(r.flags.json).toBe(true)
+  expect(r.flags.full).toBe(true)
+  expect(parseArgs(['stop', '--all']).flags.all).toBe(true)
+  expect(parseArgs(['launch', 'Bee', '--detach']).flags.detach).toBe(true)
+})
+
 test('-- stops flag parsing', () => {
   const r = parseArgs(['send', '--', '--not-a-flag', '--reply-to'])
   expect(r.positionals).toEqual(['--not-a-flag', '--reply-to'])

@@ -38,12 +38,29 @@ function insideWsl(): boolean {
   return platform() === 'linux' && Boolean(process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP)
 }
 
+// bots.json fields are interpolated into shell (bash -lc) and PowerShell
+// lines. Rather than escaping for two shells, reject the characters that
+// would break quoting: names stay conservative (they also become tmux session
+// names, tab titles, and state-dir names), paths just can't contain quotes.
+const NAME_RX = /^[A-Za-z0-9_-]+$/
+const WORD_RX = /^[A-Za-z0-9._-]+$/ // effort / model — interpolated unquoted
+function rejectQuotes(name: string, field: string, v: string): void {
+  if (v.includes("'") || v.includes('"')) {
+    throw new Error(`launch: bot "${name}" ${field} contains a quote character — not supported in launch paths: ${v}`)
+  }
+}
+
 export function selectBots(ctx: Ctx): [string, FleetBot][] {
   const names = ctx.positionals.length ? ctx.positionals : Object.keys(ctx.bots)
   return names.map(name => {
+    if (!NAME_RX.test(name)) throw new Error(`launch: bot name "${name}" must match A-Za-z0-9_- (it becomes shell commands, tmux session names, and tab titles)`)
     const e = ctx.bots[name] as Record<string, string> | undefined
     if (!e?.token) throw new Error(`launch: bot "${name}" not in bots.json (or missing token)`)
     if (!e.workDir || !e.promptFile) throw new Error(`launch: bot "${name}" needs workDir and promptFile in bots.json`)
+    rejectQuotes(name, 'workDir', e.workDir)
+    rejectQuotes(name, 'promptFile', e.promptFile)
+    if (e.effort && !WORD_RX.test(e.effort)) throw new Error(`launch: bot "${name}" effort "${e.effort}" contains unsupported characters`)
+    if (e.model && !WORD_RX.test(e.model)) throw new Error(`launch: bot "${name}" model "${e.model}" contains unsupported characters`)
     return [name, {
       name, token: e.token, channelId: e.channelId ?? '',
       workDir: e.workDir, promptFile: e.promptFile, effort: e.effort, model: e.model,
@@ -138,9 +155,11 @@ export async function run(ctx: Ctx): Promise<string> {
     // same token + state dir); a dead one is cleared and relaunched.
     const has = await sh(['tmux', 'has-session', '-t', `=${session}`], viaWsl)
     if (has.code === 0) {
-      // Pane target needs the trailing colon (see waitForReady).
+      // Pane target needs the trailing colon (see waitForReady). Kill only on
+      // a POSITIVE dead signal — a failed display-message must not take down
+      // a live session, so "can't tell" is treated as running.
       const dead = await sh(['tmux', 'display-message', '-p', '-t', `=${session}:`, '#{pane_dead}'], viaWsl)
-      if (dead.stdout.trim() === '0') {
+      if (dead.code !== 0 || dead.stdout.trim() !== '1') {
         out.push(`  ↻ ${name}: already running — use \`pinchcord restart ${name}\` to relaunch`)
         continue
       }

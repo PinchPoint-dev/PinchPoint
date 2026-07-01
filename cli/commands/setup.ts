@@ -49,7 +49,8 @@ export async function run(ctx: Ctx): Promise<string> {
     mkdirSync(dir, { recursive: true, mode: 0o700 })
     const envFile = join(dir, '.env')
     if (entry.token) {
-      writeFileSync(envFile, `DISCORD_BOT_TOKEN=${entry.token}\nPINCHHUB_CHANNEL_ID=${entry.channelId ?? ''}\n`, { mode: 0o600 })
+      // trim: a trailing newline pasted into bots.json would corrupt the .env
+      writeFileSync(envFile, `DISCORD_BOT_TOKEN=${entry.token.trim()}\nPINCHHUB_CHANNEL_ID=${(entry.channelId ?? '').trim()}\n`, { mode: 0o600 })
       try { chmodSync(envFile, 0o600) } catch {}
     }
     const accessFile = join(dir, 'access.json')

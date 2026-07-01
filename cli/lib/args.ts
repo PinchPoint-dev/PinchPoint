@@ -1,5 +1,10 @@
 const SUBCOMMAND_PARENTS = new Set(['thread'])
 
+// Flags that always take a value. Without this, `send --reply-to` (value
+// forgotten, or eaten by a following --flag) silently parsed as `true` and the
+// command silently ignored it — the reply went out as a plain message.
+const VALUE_FLAGS = new Set(['bot', 'channel', 'token', 'out', 'file', 'limit', 'before', 'mode', 'reply-to'])
+
 export interface ParsedArgs {
   command: string
   sub?: string
@@ -34,6 +39,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
         key = tok.slice(2)
         const next = argv[i + 1]
         if (next !== undefined && !next.startsWith('--')) { val = next; i++ }
+        else if (VALUE_FLAGS.has(key)) throw new Error(`--${key} requires a value`)
         else val = true
       }
       const existing = flags[key]

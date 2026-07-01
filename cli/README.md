@@ -86,8 +86,11 @@ Literal text starting with `--` goes after a `--` separator.
 | Bot     | `--bot` → `$CLAUDE_SESSION_NAME` (a legacy `-discord` suffix is stripped) |
 
 Inside a launched bot session, `DISCORD_BOT_TOKEN` and `PINCHHUB_CHANNEL_ID`
-are already exported (from the per-bot state-dir `.env`, mode 600 — tokens
-never appear on command lines), so bots just run `pinchcord send "..."`.
+are already exported (from the per-bot state-dir `.env`, mode 600 — launch
+and the server never put tokens on command lines), so bots just run
+`pinchcord send "..."`. The `--token` flag is the exception: like any CLI
+argument it is visible in the process list while the command runs — prefer
+the env var or `bots.json` on shared machines.
 `bots.json` is found at `$PINCHCORD_BOTS_JSON`, `./.pinchme/cord/bots.json`,
 or `~/.pinchme/cord/bots.json`.
 
@@ -103,12 +106,22 @@ or `~/.pinchme/cord/bots.json`.
 - **No duplicates**: launching an already-running bot is a no-op with a
   `restart` hint (two claudes on one token would fight over the gateway).
 - **Delivery watermark**: each bot persists the newest handled hub message id
-  (`last-seen` in its state dir). Restarts deliver only what was missed —
-  no 20-message backlog replay, no double delivery.
+  (`last-seen` in its state dir). Restarts deliver only what was missed — no
+  20-message backlog replay. The watermark advances on disk only after a
+  message actually reaches Claude, so a delivery that fails mid-session is
+  retried at the next restart rather than silently lost. Within a running
+  session delivery is at-most-once (no duplicates); a crash-restart may
+  redeliver messages that raced a failed one.
 - **Hub access policy**: per-bot `access.json` is provisioned with
   `requireMention: false` for the hub channel (everything in the hub reaches
   every bot); DMs stay allowlist-only. Customizations are preserved on re-runs
   of `setup`.
+
+> ⚠️ **Restrict who can write to the hub channel.** Bot messages in the hub
+> bypass the access gate entirely by design (that's how bots talk to each
+> other), and with `requireMention: false` every hub message reaches every
+> bot. Set the channel's Discord permissions so only your bots and trusted
+> operators can post there.
 
 ## Platform support
 

@@ -94,7 +94,13 @@ try {
   chmodSync(ENV_FILE, 0o600)
   for (const line of readFileSync(ENV_FILE, 'utf8').split('\n')) {
     const m = line.match(/^(\w+)=(.*)$/)
-    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
+    if (m && process.env[m[1]] === undefined) {
+      // CRLF files leave a \r on the value; hand-edited files may quote it.
+      // Either one silently corrupts the token and auth fails downstream.
+      let v = m[2].trim()
+      if (v.length >= 2 && ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))) v = v.slice(1, -1)
+      process.env[m[1]] = v
+    }
   }
 } catch (err) {
   process.stderr.write(`pinchcord: .env load failed: ${err}\n`)
@@ -423,13 +429,31 @@ client.on('messageCreate', msg => {
 // the realtime queue, and against re-delivering old messages after a restart.
 let watermark: string | null = null
 
-async function handleInbound(msg: Message): Promise<void> {
+// Newest hub message PERSISTED to disk. The in-memory watermark advances
+// before delivery (dedup); disk advances only once a message is fully handled
+// — delivered to Claude, or deliberately gated/paired. Persisting earlier
+// loses the message forever if the process dies before the notification
+// lands: the restart catch-up would see the watermark already past it.
+let persisted: string | null = null
+
+function persistWatermark(id: string): void {
+  // Monotonic — concurrent handlers finishing out of order must never move
+  // the on-disk watermark backwards.
+  if (!comms || !comms.isNewerSnowflake(id, persisted)) return
+  persisted = id
+  comms.saveLastSeen(STATE_DIR, id)
+}
+
+// Returns true when the message was fully handled (delivered, or deliberately
+// dropped/paired) — false when delivery to Claude failed, so callers can
+// avoid advancing the on-disk watermark past a lost message.
+async function handleInbound(msg: Message): Promise<boolean> {
   // Watermark applies to hub top-level messages only — thread/DM snowflakes
   // are not ordered against the hub catch-up window.
-  if (comms?.isHubMainMessage(msg)) {
-    if (!comms.isNewerSnowflake(msg.id, watermark)) return
+  const isHubMain = comms?.isHubMainMessage(msg) ?? false
+  if (isHubMain) {
+    if (!comms!.isNewerSnowflake(msg.id, watermark)) return true // duplicate — already handled
     watermark = msg.id
-    comms.saveLastSeen(STATE_DIR, msg.id)
   }
 
   // Bot messages in the hub channel skip the gate — they're pre-authorized by comms.ts
@@ -438,14 +462,18 @@ async function handleInbound(msg: Message): Promise<void> {
 
   if (!isBotInHub) {
     const result = await gate(msg)
-    if (result.action === 'drop') return
+    if (result.action === 'drop') {
+      if (isHubMain) persistWatermark(msg.id) // deliberately dropped = handled
+      return true
+    }
 
     if (result.action === 'pair') {
       const lead = result.isResend ? 'Still pending' : 'Pairing required'
       try {
         await msg.reply(`${lead} — run in Claude Code:\n\n/discord:access pair ${result.code}`)
       } catch (err) { log(`pinchcord: failed to send pairing code: ${err}`) }
-      return
+      if (isHubMain) persistWatermark(msg.id)
+      return true
     }
     accessResult = result.access
   }
@@ -490,12 +518,20 @@ async function handleInbound(msg: Message): Promise<void> {
     ...(attachmentsMod ? attachmentsMod.getAttachmentMeta(downloads) : {}),
   }
 
-  mcp.notification({
-    method: 'notifications/claude/channel',
-    params: { content, meta },
-  }).catch(err => {
+  // Awaited: the on-disk watermark must not advance past a message Claude
+  // never received. On failure the message is redelivered by the next
+  // startup catch-up (at-most-once within a session, recovered on restart).
+  try {
+    await mcp.notification({
+      method: 'notifications/claude/channel',
+      params: { content, meta },
+    })
+  } catch (err) {
     log(`pinchcord: failed to deliver inbound to Claude: ${err}`)
-  })
+    return false
+  }
+  if (isHubMain) persistWatermark(msg.id)
+  return true
 }
 
 // ---------------------------------------------------------------------------
@@ -514,24 +550,30 @@ client.once('ready', async c => {
     const reviewed = await comms.fetchStartupMessages(client, 20)
     const newest = reviewed[reviewed.length - 1]
     let delivered = 0
+    let failures = 0
     if (lastSeen !== null) {
       watermark = lastSeen
+      persisted = lastSeen
       for (const msg of reviewed) {
         if (!comms.isNewerSnowflake(msg.id, lastSeen)) continue
         if (msg.author.id === client.user?.id) continue
         if (msg.author.bot && !comms.shouldDeliverBotMessage(msg)) continue
         delivered++
-        await handleInbound(msg).catch(e => log(`pinchcord: catch-up message failed: ${e}`))
+        const ok = await handleInbound(msg).catch(e => { log(`pinchcord: catch-up message failed: ${e}`); return false })
+        if (!ok) failures++
       }
     }
-    // Advance past everything reviewed, delivered or not — a re-review after
-    // restart would gate/skip them identically, so replaying is pure noise.
+    // Advance past everything reviewed — a re-review after restart would
+    // gate/skip them identically, so replaying is pure noise. But only when
+    // every delivery landed: a failed one must stay behind the watermark so
+    // the next restart retries it (handleInbound persists per-message, so a
+    // failure holds the disk watermark just before the lost message).
     if (newest && comms.isNewerSnowflake(newest.id, watermark)) {
       watermark = newest.id
-      comms.saveLastSeen(STATE_DIR, newest.id)
+      if (failures === 0) persistWatermark(newest.id)
     }
     await comms.finishCatchUp(handleInbound)
-    log(`pinchcord: catch-up complete (${reviewed.length} reviewed, ${delivered} delivered${lastSeen === null ? ', first run — backlog skipped' : ''})`)
+    log(`pinchcord: catch-up complete (${reviewed.length} reviewed, ${delivered} delivered${failures ? `, ${failures} FAILED — held back for retry` : ''}${lastSeen === null ? ', first run — backlog skipped' : ''})`)
   }
 
   // Initialize other modules that need the client

@@ -163,7 +163,7 @@ Edit `.pinchme/cord/bots.json` with your bot tokens:
 }
 ```
 
-> **`channelId` is required.** This is the Discord snowflake ID of your hub channel (e.g., `"1492138400008896604"`). Without it, the bot defaults to PinchPoint's channel ID, causing it to post in the wrong server. Get it by right-clicking the channel in Discord with Developer Mode enabled.
+> **`channelId` is required.** This is the Discord snowflake ID of your hub channel (e.g., `"1492138400008896604"`). Without it, the bot falls back to the `PINCHHUB_CHANNEL_ID` environment variable (there is no hardcoded default) — if that is unset too, hub features are disabled. Get it by right-clicking the channel in Discord with Developer Mode enabled.
 
 Write a system prompt for each bot in `.pinchme/cord/prompts/`. See `prompts/` in this repo for 9 example templates covering common team roles.
 

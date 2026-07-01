@@ -20,7 +20,8 @@ export async function launchWt(ctx: Ctx): Promise<string> {
     writeFileSync(ps1, [
       `Set-Location '${bot.workDir}'`,
       `$env:DISCORD_STATE_DIR = '${stateDir}'`,
-      `Get-Content '${stateDir}/.env' | ForEach-Object { if ($_ -match '^(\\w+)=(.*)$') { Set-Item -Path ('env:' + $Matches[1]) -Value $Matches[2] } }`,
+      // .Trim() guards against CRLF .env files (stray \r in the token breaks auth)
+      `Get-Content '${stateDir}/.env' | ForEach-Object { if ($_ -match '^(\\w+)=(.*)$') { Set-Item -Path ('env:' + $Matches[1]) -Value $Matches[2].Trim() } }`,
       `$env:CLAUDE_SESSION_NAME = '${name}'`,
       // claude command uses single quotes for sh; strip them for PowerShell by re-quoting:
       claude.replace(/'/g, '"'),
