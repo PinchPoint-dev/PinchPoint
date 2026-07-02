@@ -124,6 +124,14 @@ or `~/.pinchme/cord/bots.json`.
 > bot. Set the channel's Discord permissions so only your bots and trusted
 > operators can post there.
 
+- **Cross-channel bot messages follow the gate.** Outside its hub, a bot
+  hears another bot's message only if the channel is in its `groups` and the
+  channel's `requireMention` policy is satisfied — identical to a human
+  message. That is what makes a shared mention-gated broadcast channel work
+  (bot A can `@BotB` there), while the mention gate is the loop protection:
+  keep any channel shared between bots `requireMention: true`, or two bots
+  with ambient delivery can talk to each other forever.
+
 ## Codex runtime
 
 A bot can run on **Codex** instead of Claude by setting `runtime: "codex"` in

@@ -28,12 +28,16 @@ const config: CommsConfig = {
 }
 
 // ---------------------------------------------------------------------------
-// Bot message filter
+// Bot message pre-authorization
 // ---------------------------------------------------------------------------
 
 /**
- * Determines whether a bot message should be delivered.
- * Returns true if the message is in the hub channel, false otherwise.
+ * True when a bot message is in the hub channel (or a hub thread) and is
+ * therefore PRE-AUTHORIZED: same-fleet bots talk freely in their hub, so the
+ * gateway delivers these without running the access gate. Bot messages in any
+ * OTHER channel are not dropped by this returning false — they fall through
+ * to the access gate and follow the channel's groups/requireMention policy,
+ * exactly like a human message (and like the codex adapter).
  * Non-bot messages are not handled here — the caller should only invoke
  * this for messages where msg.author.bot is true.
  */

@@ -30,6 +30,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, renameSync
 import { homedir } from 'os'
 import { join } from 'path'
 import { INSTRUCTIONS } from './lib/instructions'
+import { groupDelivers } from './lib/gateway-access'
 
 // ---------------------------------------------------------------------------
 // Optional module imports — each silently disabled if absent
@@ -272,12 +273,14 @@ async function gate(msg: Message): Promise<GateResult> {
     : msg.channelId
   const policy = access.groups[channelId]
   if (!policy) return { action: 'drop' }
-  const groupAllowFrom = policy.allowFrom ?? []
-  const requireMention = policy.requireMention ?? true
-  if (groupAllowFrom.length > 0 && !groupAllowFrom.includes(senderId)) {
-    return { action: 'drop' }
-  }
-  if (requireMention && !(await isMentioned(msg, access.mentionPatterns))) {
+  // isMentioned can hit the network (fetchReference) — only pay for it when
+  // the policy actually gates on mentions.
+  const mentioned = (policy.requireMention ?? true)
+    ? await isMentioned(msg, access.mentionPatterns)
+    : true
+  // Shared decision lib — the same groups/requireMention/allowFrom semantics
+  // the codex adapter applies (lib/gateway-access.ts, unit-tested).
+  if (!groupDelivers(access, { channelId, senderId, mentioned })) {
     return { action: 'drop' }
   }
   return { action: 'deliver', access }
@@ -413,10 +416,14 @@ client.on('messageCreate', msg => {
   // Self-echo suppression
   if (msg.author.id === client.user?.id) return
 
-  // Bot message filter — defer to comms module if available
-  if (msg.author.bot) {
-    if (!comms?.shouldDeliverBotMessage(msg)) return
-  }
+  // Bot-authored DMs are dropped outright — the DM branch of the gate could
+  // only ever answer them with pairing-code spam. Guild bot messages fall
+  // through: the hub is pre-authorized in handleInbound (comms), and any other
+  // channel is judged by the access gate exactly like a human message — the
+  // same groups/requireMention semantics the codex adapter already applies.
+  // A mention-gated shared channel is the loop protection: a bot only hears
+  // another bot there when explicitly addressed.
+  if (msg.author.bot && msg.channel.type === ChannelType.DM) return
 
   // Realtime queue — if catch-up is still running, queue the message
   if (comms?.enqueueIfNeeded(msg)) return
