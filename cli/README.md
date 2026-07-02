@@ -51,7 +51,8 @@ pinchcord stop --all
 
 `bots.json` entries: `token`, `channelId` (hub), `workDir`, `promptFile`,
 optional `effort`, `model`, `extraArgs` (extra claude flags; Windows paths are
-auto-translated for WSL).
+auto-translated for WSL). Optional `runtime` (`"claude"` default, or
+`"codex"`) and, for codex, `appServerUrl` — see [Codex runtime](#codex-runtime).
 
 > ⚠️ **Launch MUST pass `--strict-mcp-config`** (pinchcord launch bakes this
 > in). Without it, a workspace that auto-loads the full PinchCord MCP would
@@ -122,6 +123,47 @@ or `~/.pinchme/cord/bots.json`.
 > other), and with `requireMention: false` every hub message reaches every
 > bot. Set the channel's Discord permissions so only your bots and trusted
 > operators can post there.
+
+## Codex runtime
+
+A bot can run on **Codex** instead of Claude by setting `runtime: "codex"` in
+its `bots.json` entry. `launch`, `stop`, `restart`, `ps`, and `setup` treat it
+like any other bot — same `Pinchcord-<Bot>` tmux session, same per-bot state
+dir, `.env`, and `access.json`.
+
+```jsonc
+"Panda": {
+  "token": "…",
+  "channelId": "<hub channel id>",
+  "workDir": "/mnt/c/Repos/project",
+  "promptFile": "/mnt/c/Repos/project/.pinchme/cord/prompts/panda.md",
+  "model": "gpt-5.4",              // optional (Codex model id)
+  "runtime": "codex",
+  "appServerUrl": "ws://127.0.0.1:3848"  // optional; this is the default
+}
+```
+
+How it differs from a Claude bot:
+
+- **The adapter is the Discord connection.** A Claude bot's inbound path is the
+  slim MCP gateway (`server.ts`); a Codex bot runs [`codex/adapter.ts`](codex/adapter.ts)
+  — its own discord.js client bridged to a local **Codex app-server** over
+  JSON-RPC on a WebSocket (default `ws://127.0.0.1:3848`). Start that
+  app-server yourself before launching.
+- **Same access policy.** The adapter reads the bot's `access.json` on every
+  message and applies the identical `groups` / `requireMention` rules as the
+  gateway (`@everyone`/`@here` count as a mention). With no `access.json` it
+  falls back to "hub channel, no mention gate". Access edits are live — no
+  restart.
+- **Outbound is still the CLI.** The adapter never posts message content; the
+  Codex agent replies by calling `pinchcord send` itself, exactly like a
+  Claude bot. Its state-dir `.env` (token + hub channel) is on `PATH`, so
+  `pinchcord` resolves with no extra config.
+- **No channels-trust dialog.** `launch` waits for the adapter's
+  `codex adapter ready` line instead of the Claude channels marker.
+
+`launch` requires `claude` on `PATH` only when a Claude-runtime bot is in the
+set — a pure-Codex fleet needs just `bun` + `tmux`.
 
 ## Platform support
 

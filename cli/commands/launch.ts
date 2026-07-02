@@ -3,6 +3,8 @@ import { join } from 'path'
 import type { Ctx } from '../lib/ctx'
 import { winToWsl, buildWindowShell, buildAttachCmd, translateExtraArgs, type FleetBot } from '../lib/fleet'
 
+const CODEX_ADAPTER_REL = ['..', 'codex', 'adapter.ts'] as const
+
 // One tmux session per bot ("Pinchcord-Bee", "Pinchcord-Owl", …): every bot
 // gets its own attached terminal tab, all bots visible at once. A single
 // shared session only ever showed its active window — bots were running but
@@ -17,6 +19,9 @@ export const LEGACY_SESSION = 'Pinchcord'
 export const TRUST_DIALOG_RX = /Loading development channels|local development/i
 // Rendered by claude once channels are live — the definitive "bot is up" marker.
 export const READY_RX = /Channels \(experimental\)/i
+// Printed by the codex adapter (codex/adapter.ts) once its Discord client is
+// live. A codex bot has no channels-trust dialog, so this is its only marker.
+export const CODEX_READY_RX = /codex adapter ready/i
 
 // Run a command; in wsl mode from Windows, wrap through wsl.exe.
 export async function sh(argv: string[], viaWsl: boolean): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -61,10 +66,13 @@ export function selectBots(ctx: Ctx): [string, FleetBot][] {
     rejectQuotes(name, 'promptFile', e.promptFile)
     if (e.effort && !WORD_RX.test(e.effort)) throw new Error(`launch: bot "${name}" effort "${e.effort}" contains unsupported characters`)
     if (e.model && !WORD_RX.test(e.model)) throw new Error(`launch: bot "${name}" model "${e.model}" contains unsupported characters`)
+    if (e.runtime && e.runtime !== 'claude' && e.runtime !== 'codex') throw new Error(`launch: bot "${name}" runtime "${e.runtime}" must be "claude" or "codex"`)
+    if (e.appServerUrl) rejectQuotes(name, 'appServerUrl', e.appServerUrl)
+    const runtime: FleetBot['runtime'] = e.runtime === 'codex' ? 'codex' : 'claude'
     return [name, {
       name, token: e.token, channelId: e.channelId ?? '',
       workDir: e.workDir, promptFile: e.promptFile, effort: e.effort, model: e.model,
-      extraArgs: e.extraArgs,
+      extraArgs: e.extraArgs, runtime, appServerUrl: e.appServerUrl,
     }]
   })
 }
@@ -93,7 +101,13 @@ async function resolveTargetBun(viaWsl: boolean): Promise<string> {
 // trust dialog when (and only when) it actually renders. Replaces the old
 // blind 8-second Down+Enter, which missed slow starts (bot stuck at the
 // dialog forever) and pressed keys into nothing on fast ones.
-async function waitForReady(name: string, viaWsl: boolean): Promise<string> {
+async function waitForReady(bot: FleetBot, viaWsl: boolean): Promise<string> {
+  const name = bot.name
+  const isCodex = bot.runtime === 'codex'
+  // Codex bots print CODEX_READY_RX and have no channels-trust dialog; claude
+  // bots render READY_RX after approving TRUST_DIALOG_RX.
+  const readyRx = isCodex ? CODEX_READY_RX : READY_RX
+  const runtimeLabel = isCodex ? 'codex' : 'claude'
   // "=name:" — exact session match, and the trailing colon makes it a valid
   // pane target. Pane-target commands (display-message, capture-pane,
   // send-keys) silently no-op on a bare "=name".
@@ -107,13 +121,13 @@ async function waitForReady(name: string, viaWsl: boolean): Promise<string> {
     const text = cap.stdout
     if (dead.stdout.trim() === '1') {
       const tail = text.split('\n').filter(l => l.trim()).slice(-6).map(l => `      ${l}`).join('\n')
-      return `  ✗ ${name}: claude exited during startup — session kept for inspection:\n${tail}`
+      return `  ✗ ${name}: ${runtimeLabel} exited during startup — session kept for inspection:\n${tail}`
     }
-    if (!approved && TRUST_DIALOG_RX.test(text)) {
+    if (!isCodex && !approved && TRUST_DIALOG_RX.test(text)) {
       await sh(['tmux', 'send-keys', '-t', target, 'Enter'], viaWsl)
       approved = true
     }
-    if (READY_RX.test(text)) return `  ✓ ${name}: ready (channels live)`
+    if (readyRx.test(text)) return `  ✓ ${name}: ready (${isCodex ? 'codex adapter live' : 'channels live'})`
     await Bun.sleep(1500)
   }
   return `  ⚠ ${name}: not ready after 75s — inspect: ${viaWsl ? 'wsl ' : ''}tmux attach -t ${sessionFor(name)}`
@@ -127,11 +141,18 @@ export async function run(ctx: Ctx): Promise<string> {
   const viaWsl = mode === 'wsl' && platform() === 'win32'
   const tr = mode === 'wsl' ? winToWsl : (p: string) => p
   const mcpConfig = tr(join(process.cwd(), '.pinchme', 'cord', 'mcp-config.posix.json'))
+  const adapterPath = tr(join(import.meta.dir, ...CODEX_ADAPTER_REL))
+
+  const bots = selectBots(ctx)
+  const needsClaude = bots.some(([, b]) => b.runtime !== 'codex')
 
   // Preflight: things setup cannot provide. (bun is resolved natively below;
   // the pinchcord shim is created by the in-target setup that follows it.)
-  const pre = await sh(['bash', '-lc', 'command -v tmux && command -v claude'], viaWsl)
-  if (pre.code !== 0) throw new Error(`launch: target is missing tmux/claude on PATH:\n${pre.stdout}${pre.stderr}`)
+  // claude is only required when a claude-runtime bot is in the launch set — a
+  // pure codex fleet runs on bun + the adapter alone.
+  const preCmd = needsClaude ? 'command -v tmux && command -v claude' : 'command -v tmux'
+  const pre = await sh(['bash', '-lc', preCmd], viaWsl)
+  if (pre.code !== 0) throw new Error(`launch: target is missing tmux${needsClaude ? '/claude' : ''} on PATH:\n${pre.stdout}${pre.stderr}`)
 
   // Auto-provision target-native artifacts (mcp-config.posix.json with native
   // bun + target paths, the POSIX pinchcord shim, per-bot state dirs with .env
@@ -146,9 +167,8 @@ export async function run(ctx: Ctx): Promise<string> {
   if (setupRes.code !== 0) throw new Error(`launch: in-target setup failed:\n${setupRes.stdout}${setupRes.stderr}`)
 
   const home = await wslHome(viaWsl)
-  const bots = selectBots(ctx)
   const out: string[] = [`launching one tmux session per bot (${mode})`]
-  const started: string[] = []
+  const started: FleetBot[] = []
   for (const [name, bot] of bots) {
     const session = sessionFor(name)
     // A live bot is skipped (relaunching would create a second claude on the
@@ -166,22 +186,23 @@ export async function run(ctx: Ctx): Promise<string> {
       await sh(['tmux', 'kill-session', '-t', `=${session}`], viaWsl)
     }
     const stateDir = `${home}/.claude/channels/discord-${name.toLowerCase()}`
-    const shell = buildWindowShell({
+    const launchBot: FleetBot = {
       ...bot,
       workDir: tr(bot.workDir),
       promptFile: tr(bot.promptFile),
       extraArgs: bot.extraArgs ? translateExtraArgs(bot.extraArgs, tr) : undefined,
-    }, { mcpConfig, stateDir })
+    }
+    const shell = buildWindowShell(launchBot, { mcpConfig, stateDir, adapterPath })
     const r = await sh(['tmux', 'new-session', '-d', '-s', session, '-n', name, `bash -lc "${shell.replace(/"/g, '\\"')}"`], viaWsl)
     if (r.code !== 0) { out.push(`  ✗ ${name}: ${r.stderr.trim()}`); continue }
-    // Keep the pane (and claude's last output) around if claude dies, so a
-    // failed start is inspectable instead of silently vanishing.
+    // Keep the pane (and the bot's last output) around if it dies, so a failed
+    // start is inspectable instead of silently vanishing.
     await sh(['tmux', 'set-option', '-w', '-t', `=${session}:`, 'remain-on-exit', 'on'], viaWsl)
-    started.push(name)
+    started.push(launchBot)
   }
 
   // All started bots approve + boot concurrently; report each one's outcome.
-  const results = await Promise.all(started.map(name => waitForReady(name, viaWsl)))
+  const results = await Promise.all(started.map(bot => waitForReady(bot, viaWsl)))
   out.push(...results)
 
   // Pop one visible terminal tab per bot (grouped in a single "pinchcord"

@@ -1,3 +1,5 @@
+export type BotRuntime = 'claude' | 'codex'
+
 export interface FleetBot {
   name: string
   token: string
@@ -7,11 +9,14 @@ export interface FleetBot {
   effort?: string
   model?: string
   extraArgs?: string   // raw extra claude flags from bots.json (e.g. --add-dir "...")
+  runtime?: BotRuntime // default 'claude'; 'codex' runs the app-server adapter
+  appServerUrl?: string // codex only: Codex app-server ws url (default ws://127.0.0.1:3848)
 }
 
 export interface LaunchOpts {
-  mcpConfig: string    // absolute path, target-platform form
+  mcpConfig: string    // absolute path, target-platform form (claude runtime)
   stateDir: string     // per-bot state dir, target-platform form
+  adapterPath?: string // absolute path to codex/adapter.ts, target-platform form (codex runtime)
 }
 
 export function winToWsl(p: string): string {
@@ -45,6 +50,23 @@ export function buildClaudeCmd(bot: FleetBot, opts: LaunchOpts): string {
   ].filter(Boolean).join(' ')
 }
 
+// The run command for a codex bot: export the CODEX_* env the adapter reads
+// (token + hub channel already come from the sourced state-dir .env), then run
+// the adapter on the native bun that buildWindowShell put ahead on PATH. Like
+// buildClaudeCmd, the token never appears here. Single-quoted values are safe:
+// selectBots rejects quotes in name/workDir/promptFile/appServerUrl.
+export function buildCodexCmd(bot: FleetBot, opts: LaunchOpts): string {
+  if (!opts.adapterPath) throw new Error(`launch: codex bot "${bot.name}" has no adapter path`)
+  return [
+    `export CODEX_BOT_NAME='${bot.name}'`,
+    `export CODEX_WORK_DIR='${bot.workDir}'`,
+    bot.promptFile ? `export CODEX_PROMPT_FILE='${bot.promptFile}'` : '',
+    bot.model ? `export CODEX_MODEL='${bot.model}'` : '',
+    bot.appServerUrl ? `export CODEX_APP_SERVER_URL='${bot.appServerUrl}'` : '',
+    `bun '${opts.adapterPath}'`,
+  ].filter(Boolean).join(' && ')
+}
+
 // argv that opens a VISIBLE terminal attached to a tmux session, so a
 // wsl/mac launch shows up on the desktop instead of living only in a detached
 // background server. With one session per bot, each bot gets its own tab in
@@ -68,12 +90,13 @@ export function buildAttachCmd(mode: 'wsl' | 'mac', session: string, title = ses
 // and break. Inherited by every Bash subshell claude spawns, so the bot's
 // outbound CLI resolves natively too.
 export function buildWindowShell(bot: FleetBot, opts: LaunchOpts): string {
+  const runCmd = bot.runtime === 'codex' ? buildCodexCmd(bot, opts) : buildClaudeCmd(bot, opts)
   return [
     `export PATH="$HOME/.bun/bin:$HOME/.local/bin:$PATH"`,
     `cd '${bot.workDir}'`,
     `export DISCORD_STATE_DIR='${opts.stateDir}'`,
     `set -a && . '${opts.stateDir}/.env' && set +a`,
     `export CLAUDE_SESSION_NAME='${bot.name}'`,
-    buildClaudeCmd(bot, opts),
+    runCmd,
   ].join(' && ')
 }

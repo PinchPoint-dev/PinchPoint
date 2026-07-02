@@ -169,7 +169,7 @@ test('launch: selectBots maps a named roster entry to a FleetBot', () => {
   const picked = selectBots(makeCtx(new FakeREST(), { bots, positionals: ['Beaver'] }))
   expect(picked).toEqual([['Beaver', {
     name: 'Beaver', token: 'tok', channelId: 'C1',
-    workDir: '/w', promptFile: '/p.md', effort: 'high', model: undefined,
+    workDir: '/w', promptFile: '/p.md', effort: 'high', model: undefined, runtime: 'claude',
   }]])
 })
 

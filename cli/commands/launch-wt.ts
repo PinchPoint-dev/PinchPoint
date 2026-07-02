@@ -14,6 +14,7 @@ export async function launchWt(ctx: Ctx): Promise<string> {
   const mcpConfig = join(process.cwd(), '.pinchme', 'cord', 'mcp-config.json').replace(/\\/g, '/')
 
   for (const [name, bot] of selectBots(ctx)) {
+    if (bot.runtime === 'codex') throw new Error(`launch: codex bot "${name}" is not supported in wt mode — use --mode wsl (the Codex adapter targets a WSL/tmux fleet)`)
     const stateDir = join(homedir(), '.claude', 'channels', `discord-${name.toLowerCase()}`).replace(/\\/g, '/')
     const claude = buildClaudeCmd({ ...bot, workDir: bot.workDir, promptFile: bot.promptFile.replace(/\\/g, '/') }, { mcpConfig, stateDir })
     const ps1 = join(tmpDir, `${name}.ps1`)

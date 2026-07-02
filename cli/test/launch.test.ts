@@ -30,3 +30,17 @@ test('selectBots passes clean entries through unchanged', () => {
   expect(bot.workDir).toBe('/mnt/c/repo')
   expect(bot.effort).toBe('high')
 })
+
+test('selectBots defaults runtime to claude and passes codex through', () => {
+  const [[, claude]] = selectBots(ctx({ Bee: base }))
+  expect(claude.runtime).toBe('claude')
+
+  const [[, codex]] = selectBots(ctx({ Panda: { ...base, runtime: 'codex', appServerUrl: 'ws://127.0.0.1:3848' } }))
+  expect(codex.runtime).toBe('codex')
+  expect(codex.appServerUrl).toBe('ws://127.0.0.1:3848')
+})
+
+test('selectBots rejects an unknown runtime and quotes in appServerUrl', () => {
+  expect(() => selectBots(ctx({ Bee: { ...base, runtime: 'gpt' } }))).toThrow(/runtime/)
+  expect(() => selectBots(ctx({ Bee: { ...base, runtime: 'codex', appServerUrl: "ws://x'; reboot" } }))).toThrow(/quote/)
+})
