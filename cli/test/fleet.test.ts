@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { winToWsl, buildClaudeCmd, buildWindowShell, buildAttachCmd, translateExtraArgs } from '../lib/fleet'
+import { winToWsl, buildClaudeCmd, buildCodexCmd, buildWindowShell, buildAttachCmd, translateExtraArgs } from '../lib/fleet'
 
 test('winToWsl translates drive paths', () => {
   expect(winToWsl('C:\\Users\\me\\repo')).toBe('/mnt/c/Users/me/repo')
@@ -51,6 +51,35 @@ test('buildWindowShell prepends native bun + shim dirs ahead of any Windows shim
   // Windows PATH, else the MCP spawn and the bot's CLI run the wrong bun.
   expect(sh).toContain('export PATH="$HOME/.bun/bin:$HOME/.local/bin:$PATH"')
   expect(sh.indexOf('export PATH=')).toBeLessThan(sh.indexOf('claude '))
+})
+
+const codexOpts = { ...opts, adapterPath: '/mnt/c/repo/cli/codex/adapter.ts' }
+
+test('buildCodexCmd runs the adapter on bun and exports CODEX_* env, never the token', () => {
+  const cmd = buildCodexCmd({ ...bot, runtime: 'codex', model: 'gpt-5.4', appServerUrl: 'ws://127.0.0.1:3848' }, codexOpts)
+  expect(cmd).toContain("export CODEX_BOT_NAME='Beaver'")
+  expect(cmd).toContain("export CODEX_WORK_DIR='/mnt/c/repo'")
+  expect(cmd).toContain("export CODEX_PROMPT_FILE='/mnt/c/p.md'")
+  expect(cmd).toContain("export CODEX_MODEL='gpt-5.4'")
+  expect(cmd).toContain("export CODEX_APP_SERVER_URL='ws://127.0.0.1:3848'")
+  expect(cmd).toContain("bun '/mnt/c/repo/cli/codex/adapter.ts'")
+  expect(cmd).not.toContain('--dangerously-load-development-channels') // not a claude launch
+  expect(cmd).not.toContain('TOKEN-MUST-NOT-LEAK')
+})
+
+test('buildCodexCmd omits optional exports and requires an adapter path', () => {
+  const cmd = buildCodexCmd({ ...bot, runtime: 'codex' }, codexOpts)
+  expect(cmd).not.toContain('CODEX_MODEL')
+  expect(cmd).not.toContain('CODEX_APP_SERVER_URL')
+  expect(() => buildCodexCmd({ ...bot, runtime: 'codex' }, opts)).toThrow(/adapter path/)
+})
+
+test('buildWindowShell dispatches to the codex adapter for runtime codex', () => {
+  const sh = buildWindowShell({ ...bot, runtime: 'codex' }, codexOpts)
+  expect(sh).toContain("bun '/mnt/c/repo/cli/codex/adapter.ts'")
+  expect(sh).not.toContain('claude ') // no claude command for a codex bot
+  expect(sh).toContain(`. '${opts.stateDir}/.env'`) // still sources token/channel from .env
+  expect(sh).not.toContain('TOKEN-MUST-NOT-LEAK')
 })
 
 test('buildAttachCmd opens a visible terminal attached to the per-bot session', () => {

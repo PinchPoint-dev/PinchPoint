@@ -1,6 +1,11 @@
 import { readFileSync } from 'fs'
 
-export interface BotEntry { token?: string; channelId?: string }
+export interface BotEntry {
+  token?: string
+  channelId?: string
+  runtime?: 'claude' | 'codex'
+  appServerUrl?: string
+}
 export type BotsJson = Record<string, BotEntry>
 
 export function loadBotsFrom(
