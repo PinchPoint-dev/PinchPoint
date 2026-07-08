@@ -62,6 +62,7 @@ export function buildCodexCmd(bot: FleetBot, opts: LaunchOpts): string {
     `export CODEX_WORK_DIR='${bot.workDir}'`,
     bot.promptFile ? `export CODEX_PROMPT_FILE='${bot.promptFile}'` : '',
     bot.model ? `export CODEX_MODEL='${bot.model}'` : '',
+    bot.effort ? `export CODEX_REASONING_EFFORT='${bot.effort}'` : '',
     bot.appServerUrl ? `export CODEX_APP_SERVER_URL='${bot.appServerUrl}'` : '',
     `bun '${opts.adapterPath}'`,
   ].filter(Boolean).join(' && ')

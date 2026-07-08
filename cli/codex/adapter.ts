@@ -19,7 +19,8 @@
 //   CODEX_BOT_NAME           — display name / session name
 //   CODEX_WORK_DIR           — cwd for the Codex thread
 //   CODEX_PROMPT_FILE        — system prompt (baseInstructions)
-//   CODEX_MODEL              — Codex model id (default gpt-5.4)
+//   CODEX_MODEL              — Codex model id (default gpt-5.5)
+//   CODEX_REASONING_EFFORT   — reasoning effort per turn (default high)
 //   CODEX_APP_SERVER_URL     — app-server ws url (default ws://127.0.0.1:3848)
 import { Client, GatewayIntentBits, Partials, type Message } from 'discord.js'
 import { readFileSync, writeFileSync, chmodSync } from 'fs'
@@ -36,7 +37,11 @@ const STATE_DIR = process.env.DISCORD_STATE_DIR || ''
 const WORK_DIR = process.env.CODEX_WORK_DIR || process.cwd()
 const APP_SERVER_URL = process.env.CODEX_APP_SERVER_URL || 'ws://127.0.0.1:3848'
 const PROMPT_FILE = process.env.CODEX_PROMPT_FILE || ''
-const MODEL = process.env.CODEX_MODEL || 'gpt-5.4'
+const MODEL = process.env.CODEX_MODEL || 'gpt-5.5'
+// Reasoning effort, passed per turn (turn/start `effort`). Defaults high so the
+// bots think hard by default without depending on ~/.codex/config.toml, which a
+// codex login switch can wipe. Override per-bot via bots.json `effort`.
+const EFFORT = process.env.CODEX_REASONING_EFFORT || 'high'
 // RPC acks (initialize, thread/start, the turn/start acknowledgement) come back
 // in seconds — a short ceiling still catches a dead app-server fast.
 const RPC_TIMEOUT = Number(process.env.CODEX_RPC_TIMEOUT_MS) || 120_000 // 2 min
@@ -384,6 +389,11 @@ function startTurn(threadId: string, text: string): Promise<unknown> {
     sendRpc('turn/start', {
       threadId,
       input: [{ type: 'text', text }],
+      // Pin model + reasoning effort on every turn — applies to this and
+      // subsequent turns, so existing threads pick up gpt-5.5/high without a
+      // thread restart, and it never silently falls back to a wiped config.toml.
+      model: MODEL,
+      effort: EFFORT,
       // The bot's prompt governs when it speaks; a per-request approval gate
       // would block its own reply/react tool calls (nothing to approve them).
       approvalPolicy: 'never',

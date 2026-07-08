@@ -51,7 +51,7 @@ export async function run(ctx: Ctx): Promise<string> {
     // Both args are quote-free paths (bot name is validated A-Za-z0-9_-;
     // state/script paths contain no quotes), so single-quoting is safe and the
     // loop's own $-expansions survive.
-    const r = await sh(['tmux', 'new-session', '-d', '-s', session, '-n', `view-${name}`,
+    const r = await sh(['tmux', 'new-session', '-d', '-s', session, '-n', name,
       `bash '${scriptPath}' '${threadsFile}'`], viaWsl)
     if (r.code !== 0) throw new Error(`view: failed to start viewer session: ${r.stderr.trim()}`)
     await sh(['tmux', 'set-option', '-w', '-t', `=${session}:`, 'remain-on-exit', 'on'], viaWsl)
@@ -65,7 +65,7 @@ export async function run(ctx: Ctx): Promise<string> {
   }
   const clients = await sh(['tmux', 'list-clients', '-t', `=${session}`, '-F', 'x'], viaWsl)
   if (!clients.stdout.trim()) {
-    const argv = buildAttachCmd(popMode, session, `view-${name}`)
+    const argv = buildAttachCmd(popMode, session, name)
     if (insideWsl()) argv[0] = '/mnt/c/Windows/System32/cmd.exe'
     Bun.spawn(argv, { stdout: 'ignore', stderr: 'ignore' })
     return `opened codex viewer tab for ${name} (attached to its live thread; re-attaches on reset)`
