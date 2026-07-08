@@ -22,7 +22,7 @@
 //   CODEX_MODEL              — Codex model id (default gpt-5.4)
 //   CODEX_APP_SERVER_URL     — app-server ws url (default ws://127.0.0.1:3848)
 import { Client, GatewayIntentBits, Partials, type Message } from 'discord.js'
-import { readFileSync } from 'fs'
+import { readFileSync, writeFileSync, chmodSync } from 'fs'
 import { join } from 'path'
 import { groupDelivers, fallbackAccess, type GatewayAccess } from '../lib/gateway-access'
 
@@ -37,7 +37,16 @@ const WORK_DIR = process.env.CODEX_WORK_DIR || process.cwd()
 const APP_SERVER_URL = process.env.CODEX_APP_SERVER_URL || 'ws://127.0.0.1:3848'
 const PROMPT_FILE = process.env.CODEX_PROMPT_FILE || ''
 const MODEL = process.env.CODEX_MODEL || 'gpt-5.4'
-const TURN_TIMEOUT = 180_000 // 3 minutes
+// RPC acks (initialize, thread/start, the turn/start acknowledgement) come back
+// in seconds — a short ceiling still catches a dead app-server fast.
+const RPC_TIMEOUT = Number(process.env.CODEX_RPC_TIMEOUT_MS) || 120_000 // 2 min
+// A TURN runs until the bot finishes its whole task. Image-generation rounds
+// legitimately run 15-30 min (~1m42s per image), so the old 3-min ceiling
+// declared real work "timed out" and orphaned the still-running turn, spamming
+// errors and colliding with the next queued turn. Size it to the real workload;
+// terminal codex errors (below) release the turn early so a genuine hang does
+// not wait this out. Override with CODEX_TURN_TIMEOUT_MS.
+const TURN_TIMEOUT = Number(process.env.CODEX_TURN_TIMEOUT_MS) || 1_800_000 // 30 min
 const CONTEXT_MESSAGES = 40 // messages to inject on the first turn per channel
 const RESET_PHRASES = [`${BOT_NAME_LOWER} reset`, `${BOT_NAME_LOWER} fresh start`, `${BOT_NAME_LOWER} new session`]
 const RESET_MAX_LEN = 30
@@ -49,6 +58,10 @@ if (!TOKEN) {
 
 const SYSTEM_PROMPT = PROMPT_FILE ? readFileSync(PROMPT_FILE, 'utf-8') : ''
 const ACCESS_FILE = STATE_DIR ? join(STATE_DIR, 'access.json') : ''
+// Live channel→thread map, published so `pinchcord view <bot>` can attach a
+// codex TUI to the same thread the adapter drives. 0600 — attaching to a thread
+// lets a client drive the bot, so the file is treated as a capability.
+const THREADS_FILE = STATE_DIR ? join(STATE_DIR, 'threads.json') : ''
 
 // ─── Logging ───
 
@@ -60,6 +73,18 @@ function log(level: string, msg: string, data?: unknown): void {
   } else {
     console.log(`${prefix} ${msg}`)
   }
+}
+
+// Windows Terminal per-tab progress glyph (OSC 9;4) — restores the little
+// "busy" indicator on this bot's tab while a turn is running, cleared when it
+// finishes. Under tmux the OSC must be wrapped in DCS passthrough to reach the
+// outer terminal (requires `allow-passthrough on` on the tmux server).
+function setTabProgress(active: boolean): void {
+  if (!process.stdout.isTTY && !process.env.TMUX) return
+  const seq = active ? '\x1b]9;4;3;0\x07' : '\x1b]9;4;0;0\x07' // 3=indeterminate, 0=clear
+  process.stdout.write(
+    process.env.TMUX ? `\x1bPtmux;${seq.replace(/\x1b/g, '\x1b\x1b')}\x1b\\` : seq,
+  )
 }
 
 // ─── Access filtering (re-read every message; no restart needed) ───
@@ -114,6 +139,26 @@ function resetSession(discordId: string): void {
   if (s) {
     s.codexThreadId = null
     s.firstTurn = true
+  }
+  publishThreads()
+}
+
+// Write the live channel→thread map to THREADS_FILE (0600) so a viewer can
+// `codex resume <thread> --remote <appServerUrl>` onto the exact thread this
+// adapter drives. Called whenever a thread is created or reset.
+function publishThreads(): void {
+  if (!THREADS_FILE) return
+  const threads: Record<string, string> = {}
+  for (const [ctx, s] of sessions) if (s.codexThreadId) threads[ctx] = s.codexThreadId
+  try {
+    writeFileSync(
+      THREADS_FILE,
+      JSON.stringify({ bot: BOT_NAME, appServerUrl: APP_SERVER_URL, homeChannelId: HUB_CHANNEL_ID, threads }, null, 2),
+      { mode: 0o600 },
+    )
+    chmodSync(THREADS_FILE, 0o600) // enforce 0600 even if the file pre-existed
+  } catch (e) {
+    log('WARN', `publishThreads failed: ${(e as Error).message}`)
   }
 }
 
@@ -258,6 +303,7 @@ function handleNotification(method: string, params?: Record<string, unknown>): v
     }
     case 'turn/completed': {
       log('INFO', 'Turn completed')
+      setTabProgress(false)
       const turn = params?.turn as { id?: string } | undefined
       if (turn?.id) {
         const key = `turn:${turn.id}`
@@ -275,10 +321,27 @@ function handleNotification(method: string, params?: Record<string, unknown>): v
       break
     case 'turn/started':
       log('INFO', 'Turn started')
+      setTabProgress(true)
       break
-    case 'error':
-      log('ERROR', 'Codex error:', params?.message ?? JSON.stringify(params))
+    case 'error': {
+      // Shape: { error: { message, willRetry, turnId, ... } } (older builds put
+      // fields at top level). Log it, and if it's terminal (no further retry),
+      // reject the pending turn so the queue advances instead of waiting out the
+      // full turn timeout on a turn Codex has already given up on.
+      const err = (params?.error ?? params) as { message?: string; willRetry?: boolean; turnId?: string }
+      log('ERROR', 'Codex error:', err?.message ?? JSON.stringify(params))
+      setTabProgress(false)
+      if (err?.willRetry === false && err?.turnId) {
+        const key = `turn:${err.turnId}`
+        const pending = pendingRequests.get(key)
+        if (pending) {
+          pendingRequests.delete(key)
+          clearTimeout(pending.timeout)
+          pending.reject(new Error(err.message || 'Codex terminal error'))
+        }
+      }
       break
+    }
     default:
       break
   }
@@ -291,7 +354,7 @@ function sendRpc(method: string, params: Record<string, unknown>): Promise<unkno
     const timeout = setTimeout(() => {
       pendingRequests.delete(id)
       reject(new Error(`RPC ${method} timed out`))
-    }, TURN_TIMEOUT)
+    }, RPC_TIMEOUT)
     pendingRequests.set(id, { resolve, reject, timeout })
     ws.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }))
   })
@@ -439,6 +502,7 @@ discordClient.on('messageCreate', async msg => {
         log('INFO', `Starting new Codex thread for ${contextId}`)
         session.codexThreadId = await startThread()
         log('INFO', `Thread created: ${session.codexThreadId}`)
+        publishThreads()
       }
 
       let prompt: string

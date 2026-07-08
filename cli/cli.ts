@@ -44,6 +44,7 @@ const NEEDS: Record<string, { token: boolean; channel: boolean }> = {
   stop: { token: false, channel: false },
   restart: { token: false, channel: false },
   ps: { token: false, channel: false },
+  view: { token: false, channel: false },
 }
 
 const USAGE = `pinchcord — outbound Discord for bot fleets
@@ -65,6 +66,7 @@ Usage:
   pinchcord stop <bot|--all> [--mode ...]
   pinchcord restart <bot> [--mode ...]
   pinchcord ps [--mode ...]
+  pinchcord view <bot> [--mode wsl|mac] [--detach]           (codex bots: open a live codex TUI attached to the bot's thread)
 
 Token:   --token | $DISCORD_BOT_TOKEN | bots.json[bot].token
 Channel: --channel | $PINCHHUB_CHANNEL_ID | bots.json[bot].channelId
@@ -126,6 +128,7 @@ async function main() {
     case 'status':   result = await (await import('./commands/status')).run(ctx); break
     case 'launch':   result = await (await import('./commands/launch')).run(ctx); break
     case 'ps':       result = await (await import('./commands/ps')).run(ctx); break
+    case 'view':     result = await (await import('./commands/view')).run(ctx); break
     case 'stop':     result = await (await import('./commands/stop')).run(ctx); break
     case 'restart': {
       const stopped = await (await import('./commands/stop')).run(ctx)
