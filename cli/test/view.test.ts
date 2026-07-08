@@ -1,26 +1,30 @@
 import { test, expect } from 'bun:test'
-import { buildViewerShell, viewSessionFor } from '../commands/view'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { viewSessionFor } from '../commands/view'
 
-// The viewer shell reads the adapter's threads.json each iteration and attaches
-// a codex TUI to the current home-channel thread, re-attaching on reset.
-test('buildViewerShell reads the threads file and attaches with codex resume --remote', () => {
-  const s = buildViewerShell('Genna', '/home/x/.claude/channels/discord-genna/threads.json')
-  expect(s).toContain("F='/home/x/.claude/channels/discord-genna/threads.json'")
-  // pulls url, home channel, and the per-channel thread out of the file
-  expect(s).toContain('.appServerUrl')
-  expect(s).toContain('.homeChannelId')
-  expect(s).toContain('.threads[$c]')
-  // attaches the literal codex TUI over the remote app-server, off the API key
-  expect(s).toContain('env -u OPENAI_API_KEY codex resume "$TID" --remote "$URL"')
+// The viewer loop is a committed script (not an inline shell string, which the
+// tmux -> sh -c -> bash chain blanked out). It reads the adapter's threads.json
+// and attaches a codex TUI to the current home-channel thread, re-attaching on
+// reset.
+const loop = readFileSync(join(import.meta.dir, '..', 'codex', 'view-loop.sh'), 'utf8')
+
+test('view-loop.sh reads the threads file passed as $1 and pulls url/channel/thread', () => {
+  expect(loop).toContain('F="${1:-}"')
+  expect(loop).toContain('.appServerUrl')
+  expect(loop).toContain('.homeChannelId')
+  expect(loop).toContain('.threads[$c]')
 })
 
-test('buildViewerShell wires the optional remote auth token and re-attach loop', () => {
-  const s = buildViewerShell('Genna', '/tmp/threads.json')
+test('view-loop.sh attaches the codex TUI off the API key, with optional auth token', () => {
+  expect(loop).toContain('env -u OPENAI_API_KEY codex resume "$TID" --remote "$URL"')
   // security: only pass --remote-auth-token-env when the file names one
-  expect(s).toContain('--remote-auth-token-env "$AENV"')
-  // re-attach loop survives thread reset / app-server restart
-  expect(s).toContain('while true; do')
-  expect(s).toContain('re-checking')
+  expect(loop).toContain('--remote-auth-token-env "$AENV"')
+})
+
+test('view-loop.sh re-attaches in a loop that survives thread reset / restart', () => {
+  expect(loop).toContain('while true; do')
+  expect(loop).toContain('re-checking')
 })
 
 test('viewSessionFor is a distinct namespace from the bot/adapter sessions', () => {
