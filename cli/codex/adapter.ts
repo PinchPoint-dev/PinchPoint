@@ -213,10 +213,26 @@ function connectToAppServer(): void {
     log('INFO', 'WebSocket connected, sending initialize...')
     reconnectDelay = 1000
     sendRpc('initialize', { clientInfo: { name: `${BOT_NAME_LOWER}-adapter`, version: '1.0.0' } })
-      .then(() => {
+      .then(async () => {
         sendNotification('initialized', {})
         initialized = true
         log('INFO', 'Handshake complete, app-server ready')
+        // Eagerly mint a fresh home-channel thread and publish it, so a viewer
+        // can attach right after (re)connect instead of chasing a thread id that
+        // died with the previous app-server. On a reconnect the old in-memory
+        // thread is stale (app-server almost always restarted on localhost), so
+        // mint fresh.
+        if (HUB_CHANNEL_ID) {
+          try {
+            const s = getSession(HUB_CHANNEL_ID)
+            s.codexThreadId = await startThread()
+            s.firstTurn = true
+            log('INFO', `Home thread ready: ${s.codexThreadId}`)
+            publishThreads()
+          } catch (e) {
+            log('WARN', `eager home-thread mint failed: ${(e as Error).message}`)
+          }
+        }
       })
       .catch(e => log('ERROR', 'Initialize failed:', (e as Error).message))
   })
