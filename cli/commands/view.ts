@@ -55,6 +55,15 @@ export async function run(ctx: Ctx): Promise<string> {
       `bash '${scriptPath}' '${threadsFile}'`], viaWsl)
     if (r.code !== 0) throw new Error(`view: failed to start viewer session: ${r.stderr.trim()}`)
     await sh(['tmux', 'set-option', '-w', '-t', `=${session}:`, 'remain-on-exit', 'on'], viaWsl)
+    // The codex TUI names its terminal title after its working directory (e.g.
+    // "posters_main"), which becomes the WT tab title once set-titles is on.
+    // Swap just that text for the bot name so the tab reads "Genna", keeping
+    // codex's own thinking glyph intact. Bot name + workdir basename are both
+    // validated [A-Za-z0-9_-], so they're safe in the format substitution.
+    const wdBase = bot.workDir.split(/[\\/]/).filter(Boolean).pop() || ''
+    if (wdBase && wdBase !== name) {
+      await sh(['tmux', 'set', '-t', `=${session}`, 'set-titles-string', `#{s/${wdBase}/${name}/:pane_title}`], viaWsl)
+    }
   }
 
   // Pop a visible terminal tab attached to the viewer session (unless detached
