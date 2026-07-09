@@ -4,6 +4,36 @@ import type { Ctx } from '../lib/ctx'
 import { winToWsl, buildWindowShell, buildAttachCmd, translateExtraArgs, type FleetBot } from '../lib/fleet'
 
 const CODEX_ADAPTER_REL = ['..', 'codex', 'adapter.ts'] as const
+const CODEX_APPSERVER_REL = ['..', 'codex', 'app-server.sh'] as const
+
+export const appServerSessionFor = (bot: string) => `Codex-${bot}-Server`
+
+// Ensure a codex bot's supervised app-server is up before its adapter starts.
+// Previously the app-server was a manual step that stayed dead after any
+// crash/port-conflict, stranding the adapter (WebSocket 1006) and the viewer.
+// Now `pinchcord launch` brings up app-server.sh (auto-restart + port-clear) in
+// a Codex-<Bot>-Server session and waits for /readyz.
+async function ensureCodexAppServer(bot: FleetBot, scriptPath: string, viaWsl: boolean): Promise<string> {
+  const url = bot.appServerUrl || 'ws://127.0.0.1:3848'
+  const port = (url.match(/:(\d+)(?:\/|$)/) || [])[1] || '3848'
+  const session = appServerSessionFor(bot.name)
+  const rdz = `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:${port}/readyz`
+  const has = await sh(['tmux', 'has-session', '-t', `=${session}`], viaWsl)
+  if (has.code === 0) {
+    const ready = await sh(['bash', '-lc', rdz], viaWsl)
+    if (ready.stdout.trim() === '200') return `  · ${bot.name}: app-server already up (:${port})`
+    await sh(['tmux', 'kill-session', '-t', `=${session}`], viaWsl) // dead/stuck → recreate
+  }
+  const r = await sh(['tmux', 'new-session', '-d', '-s', session, '-n', `${bot.name}-server`, `bash '${scriptPath}' '${port}'`], viaWsl)
+  if (r.code !== 0) return `  ✗ ${bot.name}: app-server start failed: ${r.stderr.trim()}`
+  await sh(['tmux', 'set-option', '-w', '-t', `=${session}:`, 'remain-on-exit', 'on'], viaWsl)
+  for (let i = 0; i < 20; i++) {
+    const ready = await sh(['bash', '-lc', rdz], viaWsl)
+    if (ready.stdout.trim() === '200') return `  · ${bot.name}: app-server up (:${port}, supervised)`
+    await Bun.sleep(1000)
+  }
+  return `  ⚠ ${bot.name}: app-server not ready after 20s (:${port}) — check tmux ${session}`
+}
 
 // One tmux session per bot ("Pinchcord-Bee", "Pinchcord-Owl", …): every bot
 // gets its own attached terminal tab, all bots visible at once. A single
@@ -142,6 +172,7 @@ export async function run(ctx: Ctx): Promise<string> {
   const tr = mode === 'wsl' ? winToWsl : (p: string) => p
   const mcpConfig = tr(join(process.cwd(), '.pinchme', 'cord', 'mcp-config.posix.json'))
   const adapterPath = tr(join(import.meta.dir, ...CODEX_ADAPTER_REL))
+  const appServerScript = tr(join(import.meta.dir, ...CODEX_APPSERVER_REL))
 
   const bots = selectBots(ctx)
   const needsClaude = bots.some(([, b]) => b.runtime !== 'codex')
@@ -191,6 +222,11 @@ export async function run(ctx: Ctx): Promise<string> {
       workDir: tr(bot.workDir),
       promptFile: tr(bot.promptFile),
       extraArgs: bot.extraArgs ? translateExtraArgs(bot.extraArgs, tr) : undefined,
+    }
+    // Codex bots need their supervised app-server up first; the adapter would
+    // otherwise loop on WebSocket 1006 against a dead backend.
+    if (bot.runtime === 'codex') {
+      out.push(await ensureCodexAppServer(launchBot, appServerScript, viaWsl))
     }
     const shell = buildWindowShell(launchBot, { mcpConfig, stateDir, adapterPath })
     const r = await sh(['tmux', 'new-session', '-d', '-s', session, '-n', name, `bash -lc "${shell.replace(/"/g, '\\"')}"`], viaWsl)
