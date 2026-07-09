@@ -67,7 +67,13 @@ export async function run(ctx: Ctx): Promise<string> {
   // session" on set-option, which silently left the tab as codex's cwd.
   const wdBase = bot.workDir.split(/[\\/]/).filter(Boolean).pop() || ''
   if (wdBase && wdBase !== name) {
-    await sh(['tmux', 'set', '-t', session, 'set-titles-string', `#{s/${wdBase}/${name}/:pane_title}`], viaWsl)
+    // When codex is attached its title is "<glyph> <workdir>", so swap the
+    // workdir for the bot name (keeps the glyph). When it's idle/pre-attach the
+    // pane title is the hostname, which the swap wouldn't catch — so fall back to
+    // the bare bot name. Net: the tab always reads the bot name, with the glyph
+    // whenever codex is working.
+    const titleFmt = `#{?#{m:*${wdBase}*,#{pane_title}},#{s/${wdBase}/${name}/:pane_title},${name}}`
+    await sh(['tmux', 'set', '-t', session, 'set-titles-string', titleFmt], viaWsl)
   }
 
   // Pop a visible terminal tab attached to the viewer session (unless detached
