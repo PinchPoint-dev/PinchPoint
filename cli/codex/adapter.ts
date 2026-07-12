@@ -19,7 +19,7 @@
 //   CODEX_BOT_NAME           — display name / session name
 //   CODEX_WORK_DIR           — cwd for the Codex thread
 //   CODEX_PROMPT_FILE        — system prompt (baseInstructions)
-//   CODEX_MODEL              — Codex model id (default gpt-5.5)
+//   CODEX_MODEL              — Codex model id (unset = codex's own default)
 //   CODEX_REASONING_EFFORT   — reasoning effort per turn (default high)
 //   CODEX_APP_SERVER_URL     — app-server ws url (default ws://127.0.0.1:3848)
 import { Client, GatewayIntentBits, Partials, type Message } from 'discord.js'
@@ -37,7 +37,11 @@ const STATE_DIR = process.env.DISCORD_STATE_DIR || ''
 const WORK_DIR = process.env.CODEX_WORK_DIR || process.cwd()
 const APP_SERVER_URL = process.env.CODEX_APP_SERVER_URL || 'ws://127.0.0.1:3848'
 const PROMPT_FILE = process.env.CODEX_PROMPT_FILE || ''
-const MODEL = process.env.CODEX_MODEL || 'gpt-5.5'
+// Model: pinned only when bots.json sets one (exported as CODEX_MODEL). Unset
+// = the field is omitted from thread/turn calls so codex's own default model
+// applies (Sam, 2026-07-12 — the old hardcoded gpt-5.5 pin kept every bot on a
+// stale model after codex updates shipped newer defaults).
+const MODEL = process.env.CODEX_MODEL || ''
 // Reasoning effort, passed per turn (turn/start `effort`). Defaults high so the
 // bots think hard by default without depending on ~/.codex/config.toml, which a
 // codex login switch can wipe. Override per-bot via bots.json `effort`.
@@ -381,7 +385,7 @@ function sendNotification(method: string, params: Record<string, unknown>): void
 
 async function startThread(): Promise<string> {
   const result = (await sendRpc('thread/start', {
-    model: MODEL,
+    ...(MODEL ? { model: MODEL } : {}),
     cwd: WORK_DIR,
     approvalPolicy: 'never',
     sandbox: 'workspace-write',
@@ -396,10 +400,10 @@ function startTurn(threadId: string, text: string): Promise<unknown> {
     sendRpc('turn/start', {
       threadId,
       input: [{ type: 'text', text }],
-      // Pin model + reasoning effort on every turn — applies to this and
-      // subsequent turns, so existing threads pick up gpt-5.5/high without a
-      // thread restart, and it never silently falls back to a wiped config.toml.
-      model: MODEL,
+      // Pin reasoning effort on every turn (and the model, only when bots.json
+      // sets one) — applies to this and subsequent turns without a thread
+      // restart. With no pin the model rides codex's own default.
+      ...(MODEL ? { model: MODEL } : {}),
       effort: EFFORT,
       // The bot's prompt governs when it speaks; a per-request approval gate
       // would block its own reply/react tool calls (nothing to approve them).
