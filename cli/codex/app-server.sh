@@ -15,6 +15,18 @@ set -u
 PORT="${1:-3848}"
 URL="ws://127.0.0.1:${PORT}"
 
+# tmux kill-session only HUPs this supervisor shell — the codex child can
+# detach and keep running (and keep the port). Run the child in the background,
+# track its pid, and take it (plus anything else on the port) down whenever the
+# supervisor dies, so `pinchcord stop` leaves nothing behind.
+CHILD=""
+cleanup() {
+  [ -n "$CHILD" ] && kill "$CHILD" 2>/dev/null
+  fuser -k "${PORT}/tcp" >/dev/null 2>&1
+  exit 0
+}
+trap cleanup HUP INT TERM
+
 echo "[app-server supervisor] port ${PORT} — starting"
 while true; do
   # Free the port in case a previous instance hasn't fully released it (the
@@ -24,9 +36,11 @@ while true; do
   env -u OPENAI_API_KEY -u DISCORD_BOT_TOKEN codex app-server \
     --listen "${URL}" \
     -c shell_environment_policy.inherit=all \
-    -c sandbox_workspace_write.network_access=true
-
+    -c sandbox_workspace_write.network_access=true &
+  CHILD=$!
+  wait "$CHILD"
   code=$?
+  CHILD=""
   echo "[app-server supervisor] app-server exited (${code}) — restarting in 2s"
   sleep 2
 done
