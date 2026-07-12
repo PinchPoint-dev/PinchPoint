@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { winToWsl, buildClaudeCmd, buildCodexCmd, buildWindowShell, buildAttachCmd, translateExtraArgs } from '../lib/fleet'
+import { winToWsl, buildClaudeCmd, buildCodexCmd, buildWindowShell, buildAttachCmd, tabColorFor, translateExtraArgs } from '../lib/fleet'
 
 test('winToWsl translates drive paths', () => {
   expect(winToWsl('C:\\Users\\me\\repo')).toBe('/mnt/c/Users/me/repo')
@@ -88,7 +88,22 @@ test('buildAttachCmd opens a visible terminal attached to the per-bot session', 
   expect(wsl.join(' ')).toContain('tmux attach -t Pinchcord-Bee')
   const title = wsl[wsl.indexOf('--title') + 1]
   expect(title).toBe('Bee') // tab is titled with the bot name, not the session
+  expect(wsl).not.toContain('--tabColor') // no colour unless one is passed
   const mac = buildAttachCmd('mac', 'Pinchcord-Bee')
   expect(mac[0]).toBe('osascript')
   expect(mac.join(' ')).toContain('tmux attach -t Pinchcord-Bee')
+})
+
+// Tab colours tell the two fleets apart at a glance: codex dodger blue,
+// claude dark orange (Sam, 2026-07-12). The colour must precede the wsl.exe
+// command — everything after it is the tab's command line, not wt options.
+test('buildAttachCmd colours the tab per runtime', () => {
+  expect(tabColorFor('codex')).toBe('#1E90FF')
+  expect(tabColorFor('claude')).toBe('#FF8C00')
+  expect(tabColorFor(undefined)).toBe('#FF8C00') // runtime defaults to claude
+  const wsl = buildAttachCmd('wsl', 'Codex-View-Genna', 'Genna', tabColorFor('codex'))
+  expect(wsl[wsl.indexOf('--tabColor') + 1]).toBe('#1E90FF')
+  expect(wsl.indexOf('--tabColor')).toBeLessThan(wsl.indexOf('wsl.exe'))
+  const mac = buildAttachCmd('mac', 'Codex-View-Genna', 'Genna', tabColorFor('codex'))
+  expect(mac.join(' ')).not.toContain('#1E90FF') // Terminal.app: no tab colour support
 })

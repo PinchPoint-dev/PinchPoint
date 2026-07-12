@@ -1,7 +1,7 @@
 import { platform } from 'os'
 import { join } from 'path'
 import type { Ctx } from '../lib/ctx'
-import { buildAttachCmd, winToWsl, type FleetBot } from '../lib/fleet'
+import { buildAttachCmd, CODEX_TAB_COLOR, winToWsl, type FleetBot } from '../lib/fleet'
 import { resolveMode, sh, selectBots } from './launch'
 
 // `pinchcord view <Bot>` — open a literal codex TUI attached to the thread the
@@ -93,7 +93,7 @@ export async function run(ctx: Ctx): Promise<string> {
   }
   const clients = await sh(['tmux', 'list-clients', '-t', `=${session}`, '-F', 'x'], viaWsl)
   if (!clients.stdout.trim()) {
-    const argv = buildAttachCmd(popMode, session, name)
+    const argv = buildAttachCmd(popMode, session, name, CODEX_TAB_COLOR)
     if (insideWsl()) argv[0] = '/mnt/c/Windows/System32/cmd.exe'
     Bun.spawn(argv, { stdout: 'ignore', stderr: 'ignore' })
     return `opened codex viewer tab for ${name} (attached to its live thread; re-attaches on reset)`

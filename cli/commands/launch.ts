@@ -1,7 +1,7 @@
 import { homedir, platform } from 'os'
 import { join } from 'path'
 import type { Ctx } from '../lib/ctx'
-import { winToWsl, buildWindowShell, buildAttachCmd, translateExtraArgs, type FleetBot } from '../lib/fleet'
+import { winToWsl, buildWindowShell, buildAttachCmd, tabColorFor, translateExtraArgs, type FleetBot } from '../lib/fleet'
 import { ensureViewerSession } from './view'
 
 const CODEX_ADAPTER_REL = ['..', 'codex', 'adapter.ts'] as const
@@ -270,7 +270,7 @@ export async function run(ctx: Ctx): Promise<string> {
       }
       const clients = await sh(['tmux', 'list-clients', '-t', `=${session}`, '-F', 'x'], viaWsl)
       if (clients.stdout.trim()) continue // already visible in some terminal
-      const argv = buildAttachCmd(popMode, session, name)
+      const argv = buildAttachCmd(popMode, session, name, tabColorFor(bot.runtime))
       // From inside WSL, reach the Windows shell via the interop mount.
       if (insideWsl()) argv[0] = '/mnt/c/Windows/System32/cmd.exe'
       Bun.spawn(argv, { stdout: 'ignore', stderr: 'ignore' })
