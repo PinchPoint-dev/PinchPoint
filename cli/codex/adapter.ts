@@ -167,6 +167,31 @@ function publishThreads(): void {
   }
 }
 
+// Seed sessions from THREADS_FILE on startup so an adapter restart resumes the
+// thread it was driving (the app-server holds it live ~30 min) instead of
+// starting cold. firstTurn is false: a resumed thread already carries its
+// history, so the recent-message context must not be re-injected on top of it.
+// If the thread is actually gone, the startup resyncThreads clears it cleanly.
+function loadPersistedThreads(): void {
+  if (!THREADS_FILE) return
+  try {
+    const raw = JSON.parse(readFileSync(THREADS_FILE, 'utf-8')) as { threads?: Record<string, string> }
+    const threads = raw?.threads ?? {}
+    let n = 0
+    for (const [ctx, threadId] of Object.entries(threads)) {
+      if (typeof threadId === 'string' && threadId) {
+        const s = getSession(ctx)
+        s.codexThreadId = threadId
+        s.firstTurn = false
+        n++
+      }
+    }
+    if (n) log('INFO', `Loaded ${n} persisted thread(s) to resume`)
+  } catch {
+    // missing/corrupt threads.json — start cold, not fatal
+  }
+}
+
 function enqueue(discordId: string, fn: () => Promise<void>): void {
   const s = getSession(discordId)
   s.queue.push(fn)
@@ -217,13 +242,14 @@ function connectToAppServer(): void {
         sendNotification('initialized', {})
         initialized = true
         log('INFO', 'Handshake complete, app-server ready')
-        // Clear any stale home-channel thread from before this (re)connect: after
-        // an app-server restart the old thread id is dead, and eagerly minting a
-        // replacement doesn't help — a brand-new thread has no rollout yet, so
-        // `codex resume` in the viewer loops "no rollout found". Publishing it
-        // cleared lets the viewer wait gracefully; the first real message mints a
-        // valid thread WITH a rollout it can attach to.
-        if (HUB_CHANNEL_ID) resetSession(HUB_CHANNEL_ID)
+        // Rejoin any thread the app-server is still holding instead of wiping it
+        // — a transient websocket blip leaves the thread alive server-side, so
+        // resuming preserves the bot's whole context. resyncThreads resumes on a
+        // blip and clears only on a genuine app-server restart (thread dead),
+        // where the next message mints fresh with a rollout the viewer can attach
+        // to. Fire-and-forget: the per-channel queue serialises message work, and
+        // the "corrupted thread" catch in messageCreate covers the tiny race.
+        void resyncThreads()
       })
       .catch(e => log('ERROR', 'Initialize failed:', (e as Error).message))
   })
@@ -378,6 +404,40 @@ function sendNotification(method: string, params: Record<string, unknown>): void
 }
 
 // ─── Codex thread operations ───
+
+// Re-attach to a thread the app-server is still holding — it keeps threads live
+// in memory for ~30 min after the last activity. `thread/resume` with a threadId
+// rejoins a running thread AND re-establishes this connection's subscription to
+// its turn events, which a bare reconnect would otherwise lose. Returns true if
+// the same thread was rejoined, false if it's gone (unloaded / app-server
+// restarted) so the caller can mint a fresh one.
+async function resumeThread(threadId: string): Promise<boolean> {
+  try {
+    const result = (await sendRpc('thread/resume', { threadId })) as { thread?: { id?: string } }
+    return result?.thread?.id === threadId
+  } catch (e) {
+    log('WARN', `thread/resume failed for ${threadId}: ${(e as Error).message}`)
+    return false
+  }
+}
+
+// On every (re)connect, try to rejoin each live session's thread rather than
+// blanket-wiping it: a transient blip leaves the thread alive server-side, so
+// resuming preserves context. Only when resume fails (grace window elapsed, or a
+// real app-server restart) do we clear the session — resetSession publishes the
+// cleared thread so the viewer waits gracefully and the next message mints fresh.
+async function resyncThreads(): Promise<void> {
+  for (const [ctx, s] of sessions) {
+    if (!s.codexThreadId) continue
+    const threadId = s.codexThreadId
+    if (await resumeThread(threadId)) {
+      log('INFO', `Resumed thread ${threadId} for ${ctx} after reconnect`)
+    } else {
+      log('WARN', `Thread ${threadId} for ${ctx} is gone — will mint fresh on next message`)
+      resetSession(ctx)
+    }
+  }
+}
 
 async function startThread(): Promise<string> {
   const result = (await sendRpc('thread/start', {
@@ -553,6 +613,7 @@ discordClient.on('messageCreate', async msg => {
 
 log('INFO', `Starting ${BOT_NAME} adapter (persistent mode)...`)
 if (!PROMPT_FILE) log('WARN', 'no CODEX_PROMPT_FILE set — starting with an empty system prompt')
+loadPersistedThreads()
 connectToAppServer()
 discordClient.login(TOKEN).catch((e: Error) => {
   log('ERROR', `Failed to login: ${e.message}`)
