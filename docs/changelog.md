@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+**New**
+
+- `docs/worktrees.md` — recommended per-bot-worktree workflow for fleets that edit code in parallel. Each bot works in `Repo-<name>/` on `bot/<name>`; `main` is a merge target only. Eliminates shared-`git status` confusion, stacked commits, and file-edit races by construction. Validated in production on Novolaw (Sprint 30C, 2026-04-18) after atomic-commit+push coordination failed under sustained parallel work.
+- `cord/tools/merge-bot.sh` — reference merge script for reviewer bots. Fast-forwards `bot/<name>` into `main` (or merge-commits on divergence), then pushes. Refuses to run if the main tree is dirty or on a non-`main` branch.
+
 ## 0.2.0 — 2026-04-17
 
 Codex bot support, cross-platform launchers, and distribution polish.
