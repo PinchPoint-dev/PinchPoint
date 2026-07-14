@@ -1,7 +1,8 @@
 import { homedir, platform } from 'os'
 import { join } from 'path'
 import type { Ctx } from '../lib/ctx'
-import { winToWsl, buildWindowShell, buildAttachCmd, translateExtraArgs, type FleetBot } from '../lib/fleet'
+import { winToWsl, buildWindowShell, buildAttachCmd, tabColorFor, translateExtraArgs, type FleetBot } from '../lib/fleet'
+import { ensureViewerSession } from './view'
 
 const CODEX_ADAPTER_REL = ['..', 'codex', 'adapter.ts'] as const
 const CODEX_APPSERVER_REL = ['..', 'codex', 'app-server.sh'] as const
@@ -252,13 +253,24 @@ export async function run(ctx: Ctx): Promise<string> {
     out.push(`detached — attach with: ${viaWsl ? 'wsl ' : ''}tmux attach -t ${SESSION_PREFIX}<Bot>`)
   } else if (popMode) {
     let opened = 0
-    for (const [name] of bots) {
-      const session = sessionFor(name)
+    for (const [name, bot] of bots) {
+      let session = sessionFor(name)
       const has = await sh(['tmux', 'has-session', '-t', `=${session}`], viaWsl)
       if (has.code !== 0) continue
+      // A codex bot's visible surface is the typeable codex-TUI viewer
+      // (Codex-View-<Bot>), never the raw adapter log — the adapter session
+      // stays headless. Viewer failure is best-effort, like the tab spawns.
+      if (bot.runtime === 'codex') {
+        try {
+          session = await ensureViewerSession(name, bot, viaWsl, tr)
+        } catch (e) {
+          out.push(`  ⚠ ${name}: viewer failed to start (${e instanceof Error ? e.message : e}) — adapter log: ${viaWsl ? 'wsl ' : ''}tmux attach -t ${sessionFor(name)}`)
+          continue
+        }
+      }
       const clients = await sh(['tmux', 'list-clients', '-t', `=${session}`, '-F', 'x'], viaWsl)
       if (clients.stdout.trim()) continue // already visible in some terminal
-      const argv = buildAttachCmd(popMode, session, name)
+      const argv = buildAttachCmd(popMode, session, name, tabColorFor(bot.runtime))
       // From inside WSL, reach the Windows shell via the interop mount.
       if (insideWsl()) argv[0] = '/mnt/c/Windows/System32/cmd.exe'
       Bun.spawn(argv, { stdout: 'ignore', stderr: 'ignore' })

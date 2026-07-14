@@ -136,8 +136,11 @@ or `~/.pinchme/cord/bots.json`.
 
 A bot can run on **Codex** instead of Claude by setting `runtime: "codex"` in
 its `bots.json` entry. `launch`, `stop`, `restart`, `ps`, and `setup` treat it
-like any other bot — same `Pinchcord-<Bot>` tmux session, same per-bot state
-dir, `.env`, and `access.json`.
+like any other bot — same `Pinchcord-<Bot>` tmux session for the adapter, same
+per-bot state dir, `.env`, and `access.json`. A running codex bot is three tmux
+sessions: the adapter (`Pinchcord-<Bot>`), a supervised app-server
+(`Codex-<Bot>-Server`), and the TUI viewer (`Codex-View-<Bot>`); `stop` takes
+down all three.
 
 ```jsonc
 "Panda": {
@@ -156,8 +159,15 @@ How it differs from a Claude bot:
 - **The adapter is the Discord connection.** A Claude bot's inbound path is the
   slim MCP gateway (`server.ts`); a Codex bot runs [`codex/adapter.ts`](codex/adapter.ts)
   — its own discord.js client bridged to a local **Codex app-server** over
-  JSON-RPC on a WebSocket (default `ws://127.0.0.1:3848`). Start that
-  app-server yourself before launching.
+  JSON-RPC on a WebSocket (default `ws://127.0.0.1:3848`). `launch` brings the
+  app-server up first as a supervised process ([`codex/app-server.sh`](codex/app-server.sh):
+  auto-restarts on crash, clears the port, kills its child on teardown) in a
+  `Codex-<Bot>-Server` session and waits for `/readyz` before the adapter.
+- **The visible tab is the codex TUI viewer, not the adapter log.** `launch`
+  pops a tab attached to `Codex-View-<Bot>` — a literal, typeable codex TUI
+  live-mirroring the bot's thread ([`codex/view-loop.sh`](codex/view-loop.sh),
+  same surface as `pinchcord view <Bot>`) — while the adapter session stays
+  headless in the background.
 - **Same access policy.** The adapter reads the bot's `access.json` on every
   message and applies the identical `groups` / `requireMention` rules as the
   gateway (`@everyone`/`@here` count as a mention). With no `access.json` it

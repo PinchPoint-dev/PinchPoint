@@ -1,7 +1,7 @@
 import { platform } from 'os'
 import { join } from 'path'
 import type { Ctx } from '../lib/ctx'
-import { buildAttachCmd, winToWsl } from '../lib/fleet'
+import { buildAttachCmd, CODEX_TAB_COLOR, winToWsl, type FleetBot } from '../lib/fleet'
 import { resolveMode, sh, selectBots } from './launch'
 
 // `pinchcord view <Bot>` — open a literal codex TUI attached to the thread the
@@ -25,16 +25,11 @@ function insideWsl(): boolean {
   return platform() === 'linux' && Boolean(process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP)
 }
 
-export async function run(ctx: Ctx): Promise<string> {
-  const mode = resolveMode(ctx.flags) // wsl | wt | mac
-  const viaWsl = mode === 'wsl' && platform() === 'win32'
-  const tr = mode === 'wsl' ? winToWsl : (p: string) => p
-
-  const bots = selectBots(ctx)
-  if (bots.length !== 1) throw new Error('view: name exactly one bot, e.g. `pinchcord view Genna`')
-  const [name, bot] = bots[0]
-  if (bot.runtime !== 'codex') throw new Error(`view: "${name}" is a ${bot.runtime} bot — the codex TUI viewer only applies to codex bots`)
-
+// Ensure the Codex-View-<Bot> session is running the viewer loop with its tab
+// title reading the bot name; returns the session name. Shared by `pinchcord
+// view` and — for codex bots — `pinchcord launch`, so the surface a founder
+// sees is always the codex TUI viewer, never the raw adapter log.
+export async function ensureViewerSession(name: string, bot: FleetBot, viaWsl: boolean, tr: (p: string) => string): Promise<string> {
   // Resolve the bot's state dir the same way launch does, then its threads.json.
   const homeRes = await sh(['bash', '-lc', 'echo $HOME'], viaWsl)
   const home = homeRes.stdout.trim()
@@ -44,8 +39,8 @@ export async function run(ctx: Ctx): Promise<string> {
 
   const session = viewSessionFor(name)
 
-  // If a viewer session is already live, just (re)open its tab rather than
-  // stacking a second codex TUI on the same thread.
+  // If a viewer session is already live, reuse it rather than stacking a
+  // second codex TUI on the same thread.
   const has = await sh(['tmux', 'has-session', '-t', `=${session}`], viaWsl)
   if (has.code !== 0) {
     // Both args are quote-free paths (bot name is validated A-Za-z0-9_-;
@@ -75,6 +70,20 @@ export async function run(ctx: Ctx): Promise<string> {
     const titleFmt = `#{?#{m:*${wdBase}*,#{pane_title}},#{s/${wdBase}/${name}/:pane_title},${name}}`
     await sh(['tmux', 'set', '-t', session, 'set-titles-string', titleFmt], viaWsl)
   }
+  return session
+}
+
+export async function run(ctx: Ctx): Promise<string> {
+  const mode = resolveMode(ctx.flags) // wsl | wt | mac
+  const viaWsl = mode === 'wsl' && platform() === 'win32'
+  const tr = mode === 'wsl' ? winToWsl : (p: string) => p
+
+  const bots = selectBots(ctx)
+  if (bots.length !== 1) throw new Error('view: name exactly one bot, e.g. `pinchcord view Genna`')
+  const [name, bot] = bots[0]
+  if (bot.runtime !== 'codex') throw new Error(`view: "${name}" is a ${bot.runtime} bot — the codex TUI viewer only applies to codex bots`)
+
+  const session = await ensureViewerSession(name, bot, viaWsl, tr)
 
   // Pop a visible terminal tab attached to the viewer session (unless detached
   // or already visible), mirroring launch's behaviour.
@@ -84,7 +93,7 @@ export async function run(ctx: Ctx): Promise<string> {
   }
   const clients = await sh(['tmux', 'list-clients', '-t', `=${session}`, '-F', 'x'], viaWsl)
   if (!clients.stdout.trim()) {
-    const argv = buildAttachCmd(popMode, session, name)
+    const argv = buildAttachCmd(popMode, session, name, CODEX_TAB_COLOR)
     if (insideWsl()) argv[0] = '/mnt/c/Windows/System32/cmd.exe'
     Bun.spawn(argv, { stdout: 'ignore', stderr: 'ignore' })
     return `opened codex viewer tab for ${name} (attached to its live thread; re-attaches on reset)`

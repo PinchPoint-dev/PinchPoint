@@ -68,18 +68,27 @@ export function buildCodexCmd(bot: FleetBot, opts: LaunchOpts): string {
   ].filter(Boolean).join(' && ')
 }
 
+// Per-runtime tab colours, so the two fleets are tellable at a glance
+// (Sam, 2026-07-12): codex bots dodger blue, Claude bots dark orange.
+export const CODEX_TAB_COLOR = '#1E90FF'
+export const CLAUDE_TAB_COLOR = '#FF8C00'
+export const tabColorFor = (runtime: BotRuntime | undefined) =>
+  runtime === 'codex' ? CODEX_TAB_COLOR : CLAUDE_TAB_COLOR
+
 // argv that opens a VISIBLE terminal attached to a tmux session, so a
 // wsl/mac launch shows up on the desktop instead of living only in a detached
 // background server. With one session per bot, each bot gets its own tab in
 // the shared "pinchcord" Windows Terminal window. tmux still owns the bots —
 // closing a tab leaves its bot running; relaunch reopens it.
 //   - 'wsl' (Windows host): Windows Terminal tab running `wsl … tmux attach`.
-//   - 'mac': Terminal.app window running `tmux attach`.
-export function buildAttachCmd(mode: 'wsl' | 'mac', session: string, title = session): string[] {
+//   - 'mac': Terminal.app window running `tmux attach` (no tab-colour support).
+export function buildAttachCmd(mode: 'wsl' | 'mac', session: string, title = session, tabColor?: string): string[] {
   if (mode === 'mac') {
     return ['osascript', '-e', `tell application "Terminal" to do script "tmux attach -t ${session}"`]
   }
-  return ['cmd.exe', '/c', 'start', 'wt.exe', '-w', 'pinchcord', 'new-tab', '--title', title, 'wsl.exe', '-e', 'tmux', 'attach', '-t', session]
+  return ['cmd.exe', '/c', 'start', 'wt.exe', '-w', 'pinchcord', 'new-tab', '--title', title,
+    ...(tabColor ? ['--tabColor', tabColor] : []),
+    'wsl.exe', '-e', 'tmux', 'attach', '-t', session]
 }
 
 // The shell line run inside a tmux window (wsl/mac). Token comes from the
